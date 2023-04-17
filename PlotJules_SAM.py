@@ -28,7 +28,8 @@ import scipy.stats
 import matplotlib
 import numpy.ma as ma
 import cf_units
-
+from pdb import set_trace as browser
+import iris.coord_categorisation
 
 #Function to sort out the time dimension
 def sort_time(cube, field, filename):
@@ -48,8 +49,11 @@ def sort_time(cube, field, filename):
 
 #If loading in raw ISIMIP data:
 pwdproc="/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/"
+
 burnt_area_total=iris.load(pwdproc+"jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc", callback=sort_time)[0]
 burnt_area=iris.cube.Cube([])
+
+
 bfiles=sorted( filter( os.path.isfile,
                         glob.glob(pwdproc+"*burnt*") ) )
 ffiles=sorted( filter( os.path.isfile,
@@ -143,7 +147,7 @@ natural_earth_file = shape.load_shp(shpfilename)
 CountrySelect = shape.load_shp(shpfilename, Continent='South America')
 CountrySelect = Country.unary_union()
 CountrySelect.show()
-or
+#or
 CountrySelect = shape.load_shp(shpfilename, Name='Brazil')
 CountryData = CountrySelect.mask_cube(cube)
 
