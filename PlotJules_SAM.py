@@ -30,6 +30,8 @@ import numpy.ma as ma
 import cf_units
 from pdb import set_trace as browser
 import iris.coord_categorisation
+import cartopy.io.shapereader as shpreader
+from ascend import shape
 
 #Function to sort out the time dimension
 def sort_time(cube, field, filename):
@@ -45,10 +47,115 @@ def sort_time(cube, field, filename):
     #cube = cube.extract(iris.Constraint(year=lambda cell: 2090 > cell))
     return(cube)
 
+def add_bounds(cube):
+    coords = ('longitude', 'latitude')
+    for coord in coords:
+        if not cube.coord(coord).has_bounds():
+            cube.coord(coord).guess_bounds()
+    return(cube)
+
+
+Continent = 'South America'
+Country = 'Brazil'
+ecoregions = [3, 7, 8]
+
+def constrain_olson(cube):
+    #yay = shpreader.natural_earth(resolution='110m', 
+    #                                      category='cultural', name='admin_0_countries')
+    #shpfilename = shpreader.Reader('/data/users/arargles/model_inputs/eco_res_um/olson/tnc_terr_ecoregions.shp')
+    #ecoregions = shpfilename.records()
+    #ecoregion = next(ecoregions)
+    biomes = iris.load_cube('data/wwf_terr_ecos_0p5.nc')
+    mask = biomes.copy()
+    mask.data[:] = 0.0
+    for ecoreg in ecoregions: mask.data += biomes.data == ecoreg
+    mask.data[mask.data.mask] = 0.0
+    mask = mask.data == 0
+    #cube.data[mask.data == 0] = np.nan
+    for layer in cube.data:
+        layer.mask[mask] = False
+        layer[mask] = np.nan
+    return cube
+    #reducedbiome = biomes.extract(iris.Constraint(latitude=lambda cell: cell == np.array(ecoregions)))
+
+    #olson_file = shape.load_shp(shpfilename)
+
+def constrain_natural_earth(cube):
+    shpfilename = shpreader.natural_earth(resolution='110m', 
+                                          category='cultural', name='admin_0_countries')
+    natural_earth_file = shape.load_shp(shpfilename)
+    if Country is not None:
+        NAMES = [i.attributes.get('NAME') for i in natural_earth_file]
+        NAME = [s for s in NAMES if Country in s][0]
+        CountrySelect = shape.load_shp(shpfilename, NAME=NAME)
+    elif Continent is not None:
+        CountrySelect = shape.load_shp(shpfilename, Continent='South America')
+        CountrySelect = Country.unary_union()
+    cube = CountrySelect[0].constrain_cube(cube)
+    
+    cube = CountrySelect[0].mask_cube(cube)
+    return cube
+
+def constrain_region(cube):
+    if ecoregions is not None:
+        cube = constrain_olson(cube)
+
+    if Continent is not None or Country is not None:
+        cube = constrain_natural_earth(cube)
+
+    return(cube)
+
+
+
+varnames_in = [['pft-bdldcd', 'pft-bdlevgtrop', 'pft-bdlevgtemp', 'pft-ndldcd', 'pft-ndlevg'],
+            ['pft-c3grass', 'pft-c4grass'], ['burntarea-total']]
+varnames_out = ['tree_cover', 'grass_cover', 'burnt_area']
+
+year_range = [2000, 2003]
 
 
 #If loading in raw ISIMIP data:
-pwdproc="/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/"
+pwdproc= ["/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_", "_global_monthly_1901_2021.nc"]
+
+outDir = 'outputs/jules_isimip_processed/'
+outFile = 'fire_on_JULES_ISIMIP-'
+
+try: os.mkdir(outDir)
+except: pass
+
+def load_variable(variable, i = 0, multi = False):
+    cube_in = iris.load(pwdproc[0] + variable + pwdproc[1], callback=sort_time)[0]
+    cube = cube_in.copy()
+    cube = cube.extract(iris.Constraint(year=lambda cell: year_range[0] < cell <= year_range[1]))
+    cube = add_bounds(cube)
+    cube = constrain_region(cube)
+    if multi:
+        coord = iris.coords.DimCoord(i, 'realization')
+        cube.add_aux_coord(coord)
+        cube.var_name = 'None'  
+        del cube.attributes['history']  
+    return cube
+
+def load_variables(varname_in, varname_out = None):
+    if len(varname_in) > 1:
+        cubes = [load_variable(var, i, True) for var, i in zip(varname_in, range(len(varname_in)))]
+        cubes = iris.cube.CubeList(cubes).merge_cube()
+        try:
+            cube = cubes.collapsed('realization', iris.analysis.SUM)
+        except:
+            browser()
+    else:
+        cube = load_variable(varname_in[0])
+    
+    cube.var_name = varname_out
+
+    out_file = outDir + '/' + outFile + '_' + varname_out + '.nc'
+    iris.save(cube, out_file)
+    return cube
+
+all_variables = [load_variables(var_in, var_out) for var_in, var_out in zip(varnames_in, varnames_out)]
+browser()
+
 
 burnt_area_total=iris.load(pwdproc+"jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc", callback=sort_time)[0]
 burnt_area=iris.cube.Cube([])
@@ -140,8 +247,7 @@ plt.show()
 #t1p5m_gb
 
 #Constrain to a region using natural earth continents or countries
-import cartopy.io.shapereader as shpreader
-from ascend import shape
+
 shpfilename = shpreader.natural_earth(resolution='110m', category='cultural', name='admin_0_countries')
 natural_earth_file = shape.load_shp(shpfilename)
 CountrySelect = shape.load_shp(shpfilename, Continent='South America')
@@ -151,10 +257,7 @@ CountrySelect.show()
 CountrySelect = shape.load_shp(shpfilename, Name='Brazil')
 CountryData = CountrySelect.mask_cube(cube)
 
-coords = ('longitude', 'latitude')
-for coord in coords:
-    if not cube.coord(coord).has_bounds():
-        cube.coord(coord).guess_bounds()
+
 grid_weights = iris.analysis.cartography.area_weights(CountrySelect)
 #Collapse to find timeseries
 cube = CountrySelect.collapsed(coords, iris.analysis.SUM, weights = grid_weights1) / 1E12
