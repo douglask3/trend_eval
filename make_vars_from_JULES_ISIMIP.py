@@ -66,85 +66,19 @@ sys.path.append('/net/home/h03/kwilliam/other_fcm/jules_py/trunk/jules/')
 import jules
 import numpy.ma as ma
 import iris
-import numpy as np
+from   libs.iris_plus import *
+from   libs.constrain_cubes_standard import *
 import iris.quickplot as qplt
 import matplotlib.pyplot as plt
 import iris.plot as iplt
-from scipy import stats
 import iris.analysis.stats
-import scipy.stats
 import matplotlib
 import numpy.ma as ma
-import cf_units
+import numpy as np
+
 from pdb import set_trace as browser
 import iris.coord_categorisation
-import cartopy.io.shapereader as shpreader
-from ascend import shape
 
-#Function to sort out the time dimension
-def sort_time(cube, field, filename):
-    cube.coord("time").bounds=None
-    tcoord = cube.coord("time")
-    tcoord.units = cf_units.Unit(tcoord.units.origin, calendar="gregorian")
-    tcoord.convert_units("days since 1661-01-01 00:00:00")
-    tcoord.units = cf_units.Unit(tcoord.units.origin, calendar="proleptic_gregorian")
-    cube.remove_coord("time")
-    cube.add_dim_coord(tcoord, 0) # might need to find this dimension
-    iris.coord_categorisation.add_year(cube, 'time')
-    iris.coord_categorisation.add_month(cube, 'time')
-
-    return(cube)
-
-def add_bounds(cube):
-    coords = ('longitude', 'latitude')
-    for coord in coords:
-        if not cube.coord(coord).has_bounds():
-            cube.coord(coord).guess_bounds()
-    return(cube)
-
-
-def constrain_olson(cube):
-    biomes = iris.load_cube('data/wwf_terr_ecos_0p5.nc')
-    mask = biomes.copy()
-    mask.data[:] = 0.0
-    for ecoreg in ecoregions: mask.data += biomes.data == ecoreg
-    mask.data[mask.data.mask] = 0.0
-    mask = mask.data == 0
-
-    for layer in cube.data:
-        layer.mask[mask] = False
-        layer[mask] = np.nan
-    return cube
-
-def constrain_natural_earth(cube):
-    shpfilename = shpreader.natural_earth(resolution='110m', 
-                                          category='cultural', name='admin_0_countries')
-    natural_earth_file = shape.load_shp(shpfilename)
-    if Country is not None:
-        NAMES = [i.attributes.get('NAME') for i in natural_earth_file]
-        NAME = [s for s in NAMES if Country in s][0]
-        CountrySelect = shape.load_shp(shpfilename, NAME=NAME)
-    elif Continent is not None:
-        CountrySelect = shape.load_shp(shpfilename, Continent='South America')
-        CountrySelect = Country.unary_union()
-    cube = CountrySelect[0].constrain_cube(cube)
-    
-    cube = CountrySelect[0].mask_cube(cube)
-    return cube
-
-def constrain_region(cube):
-    if ecoregions is not None:
-        cube = constrain_olson(cube)
-
-    if Continent is not None or Country is not None:
-        cube = constrain_natural_earth(cube)
-
-    return(cube)
-
-
-
-try: os.mkdir(outDir)
-except: pass
 
 def load_variable(variable, i = 0, multi = False):
     file_in = Jules_ISIMIP_dir + Jules_ISIMIP_fileID[0] + variable + Jules_ISIMIP_fileID[1]
@@ -152,7 +86,7 @@ def load_variable(variable, i = 0, multi = False):
     cube = cube_in.copy()
     cube = cube.extract(iris.Constraint(year=lambda cell: year_range[0] < cell <= year_range[1]))
     cube = add_bounds(cube)
-    cube = constrain_region(cube)
+    cube = constrain_region(cube, ecoregions, Continent, Country)
     if multi:
         coord = iris.coords.DimCoord(i, 'realization')
         cube.add_aux_coord(coord)
@@ -164,10 +98,7 @@ def load_variables(varname_in, varname_out = None):
     if len(varname_in) > 1:
         cubes = [load_variable(var, i, True) for var, i in zip(varname_in, range(len(varname_in)))]
         cubes = iris.cube.CubeList(cubes).merge_cube()
-        try:
-            cube = cubes.collapsed('realization', iris.analysis.SUM)
-        except:
-            browser()
+        cube = cubes.collapsed('realization', iris.analysis.SUM)
     else:
         cube = load_variable(varname_in[0])
     
@@ -177,6 +108,10 @@ def load_variables(varname_in, varname_out = None):
     print(out_file)
     iris.save(cube, out_file)
     return cube
+
+
+try: os.mkdir(outDir)
+except: pass
 
 all_variables = [load_variables(var_in, var_out) for var_in, var_out in zip(varnames_in, varnames_out)]
 
