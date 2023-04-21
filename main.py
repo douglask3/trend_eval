@@ -6,7 +6,7 @@ def read_data_from_netcdf(y_filename, x_filename_list,
                           subset_function=None):
     """Read data from a netCDF file 
     Assumes that the variables in the netcdf file all have the name "variable"
-
+    Assunes that values < -9E9, you dont want. This could be different in some circumstances.
     Arguments:
 
     y_filename -- a two element python list containing the name of the file and the target variable name
@@ -21,6 +21,7 @@ def read_data_from_netcdf(y_filename, x_filename_list,
     
     y_dataset=nc.Dataset(y_filename[0])[y_filename[1]]
     y_dataset = np.array(y_dataset).flatten()
+    
     if subset_function is not None:
         Y=subset_function(y_dataset)
     else:
@@ -35,7 +36,10 @@ def read_data_from_netcdf(y_filename, x_filename_list,
         x_dataset = nc.Dataset(filename[0])[filename[1]]
         x_dataset = np.array(x_dataset).flatten()
         X[:, i]=x_dataset
-
+    
+    cells_we_want = np.array([np.all(i > -9e9) for i in X])
+    Y = Y[cells_we_want]
+    X = X[cells_we_want, :]
     return Y, X
 
 def read_data_from_csv(filename):
@@ -58,7 +62,7 @@ if __name__=="__main__":
     x_filen_list.append([dir + "tas.nc", "variable"])    
     
     Y, X=read_data_from_netcdf(y_filen, x_filen_list)
-
+    
     print(Y)
     print(X)
 
