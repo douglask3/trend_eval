@@ -37,7 +37,7 @@ def read_data_from_netcdf(y_filename, x_filename_list,
         x_dataset = np.array(x_dataset).flatten()
         X[:, i]=x_dataset
     
-    cells_we_want = np.array([np.all(i > -9e9) for i in X])
+    cells_we_want = np.array([np.all(rw > -9e9) for rw in X])
     Y = Y[cells_we_want]
     X = X[cells_we_want, :]
     return Y, X
