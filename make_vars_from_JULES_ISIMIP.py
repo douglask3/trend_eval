@@ -68,18 +68,17 @@ import numpy.ma as ma
 import iris
 from   libs.iris_plus import *
 from   libs.constrain_cubes_standard import *
-import iris.quickplot as qplt
-import matplotlib.pyplot as plt
-import iris.plot as iplt
 import iris.analysis.stats
-import matplotlib
+
 import numpy.ma as ma
 import numpy as np
 
 from pdb import set_trace as browser
 import iris.coord_categorisation
 
-
+############################
+## Open up cube           ##
+############################
 def load_variable(variable, i = 0, multi = False):
     file_in = Jules_ISIMIP_dir + Jules_ISIMIP_fileID[0] + variable + Jules_ISIMIP_fileID[1]
     cube_in = iris.load(file_in, callback=sort_time)[0]
@@ -115,9 +114,7 @@ except: pass
 
 all_variables = [load_variables(var_in, var_out) for var_in, var_out in zip(varnames_in, varnames_out)]
 
-#Region mask notes:
-#https://regionmask.readthedocs.io/en/v0.9.0/
-#https://regionmask.readthedocs.io/en/v0.9.0/notebooks/mask_2D.html
-#https://regionmask.readthedocs.io/en/v0.9.0/defined_scientific.html
+
+
 
 

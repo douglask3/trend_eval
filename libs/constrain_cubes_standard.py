@@ -1,4 +1,9 @@
 
+#Region mask notes:
+#https://regionmask.readthedocs.io/en/v0.9.0/
+#https://regionmask.readthedocs.io/en/v0.9.0/notebooks/mask_2D.html
+#https://regionmask.readthedocs.io/en/v0.9.0/defined_scientific.html
+
 import iris
 import cartopy.io.shapereader as shpreader
 from ascend import shape
