@@ -21,7 +21,13 @@ def read_data_from_netcdf(y_filename, x_filename_list,
     
     y_dataset=nc.Dataset(y_filename[0])[y_filename[1]]
     y_dataset = np.array(y_dataset).flatten()
-    
+    # Create a new categorical variable based on the threshold
+    y_dataset = np.where(y_dataset <= 0.010, 0, 1)
+    #set_trace()
+    #count number of 0 and 1 
+    counts = np.bincount(y_dataset)
+    #print(f"Number of 0's: {counts[0]}, Number of 1's: {counts[1]}")
+    #set_trace()
     if subset_function is not None:
         Y=subset_function(y_dataset)
     else:
@@ -40,6 +46,7 @@ def read_data_from_netcdf(y_filename, x_filename_list,
     cells_we_want = np.array([np.all(rw > -9e9) for rw in X])
     Y = Y[cells_we_want]
     X = X[cells_we_want, :]
+    X = np.column_stack((X, np.ones(len(X)))) # add a column of ones to X 
     return Y, X
 
 def read_data_from_csv(filename):
@@ -52,10 +59,16 @@ def fit_linear_to_data(Y, X):
     """
 
     return A
+    
+def fit_logistic_to_data(Y, X):
+    """Fit equation to data
+    """
+
+    return A
 
 if __name__=="__main__":
-    dir = "/home/h02/dkelley/ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
-    y_filen = [dir +"GFED4.1s_Burned_Fraction.nc", "Date"]
+    dir = "D:/Doutorado/Sanduiche/research/maxent-test/driving_and_obs_overlap/AllConFire_2000_2009/"
+    y_filen = [dir +"GFED4.1s_Burned_Area_Fraction.nc", "Date"]
     
     x_filen_list=[]
     x_filen_list.append([dir + "precip.nc", "variable"])    
