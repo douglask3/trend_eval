@@ -1,6 +1,8 @@
 import numpy as np
 import netCDF4 as nc
 from pdb import set_trace
+from sklearn import linear_model
+import matplotlib.pyplot as plt
 
 def read_data_from_netcdf(y_filename, x_filename_list, 
                           subset_function=None):
@@ -48,10 +50,33 @@ def read_data_from_csv(filename):
     pass
 
 def fit_linear_to_data(Y, X):
-    """Fit equation to data
+    """Use scikit learn to fit a linear equation.
+
+    Arguments:
+
+    Y -- numpy array of target variables 
+    X -- numpy array of feature space variabels
+
+    Returns.
+
+    regr.coef_ -- regression coefficients
+    Y_pred -- model prediction of the Y values
+
+    **OR**
+    regr -- return the regression model
     """
 
-    return A
+    regr = linear_model.LinearRegression()
+    
+    regr.fit(X, Y)
+
+    Y_pred = regr.predict(X)
+
+ 
+
+    #return regr.coef_, Y_pred
+
+    return regr
 
 if __name__=="__main__":
     dir = "/home/h02/dkelley/ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
@@ -63,6 +88,9 @@ if __name__=="__main__":
     
     Y, X=read_data_from_netcdf(y_filen, x_filen_list)
     
+    reg = fit_linear_to_data(Y, X)
+    plt.plot(Y, reg.predict(X), '.')
+    set_trace()
     print(Y)
     print(X)
 
