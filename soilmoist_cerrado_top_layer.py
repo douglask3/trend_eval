@@ -1,6 +1,8 @@
 ####Updated from Chantelle's scrip####
-##don't think we need all these imports
 
+##plot a timeseries of a given variable. In this case, soil moisture for Cerrado.
+
+##don't think we need all these imports
 import os
 import glob
 import sys
