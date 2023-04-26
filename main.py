@@ -2,6 +2,8 @@ import numpy as np
 import netCDF4 as nc
 from pdb import set_trace
 from sklearn import linear_model
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 def read_data_from_netcdf(y_filename, x_filename_list, 
@@ -27,9 +29,10 @@ def read_data_from_netcdf(y_filename, x_filename_list,
     y_dataset = np.where(y_dataset <= 0.010, 0, 1)
     #set_trace()
     #count number of 0 and 1 
-    counts = np.bincount(y_dataset)
+    #counts = np.bincount(y_dataset)
     #print(f"Number of 0's: {counts[0]}, Number of 1's: {counts[1]}")
     #set_trace()
+        
     if subset_function is not None:
         Y=subset_function(y_dataset)
     else:
@@ -87,24 +90,54 @@ def fit_linear_to_data(Y, X):
     return regr
 
 def fit_logistic_to_data(Y, X):
-    """Fit equation to data
-    """
+    """Use scikit learn to fit a linear equation.
 
-    return A
+    Arguments:
+
+    Y -- numpy array of target variables 
+    X -- numpy array of feature space variabels
+
+    Returns.
+
+    logr.coef_ -- regression coefficients
+    Y_pred -- model prediction of the Y values
+
+    **OR**
+    logr -- return the regression model
+    """
+    
+   
+    # Split data into train and test sets
+    #X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=0)
+
+    logr = LogisticRegression()
+    logr.fit(X, Y)
+
+    y_pred = logr.predict(X)
+
+    return logr
+   
 
 if __name__=="__main__":
     dir = "D:/Doutorado/Sanduiche/research/maxent-test/driving_and_obs_overlap/AllConFire_2000_2009/"
     y_filen = [dir +"GFED4.1s_Burned_Area_Fraction.nc", "Date"]
-    
+    #set_trace()
     x_filen_list=[]
     x_filen_list.append([dir + "precip.nc", "variable"])    
-    x_filen_list.append([dir + "tas.nc", "variable"])    
+    x_filen_list.append([dir + "tas.nc", "variable"]) 
     
     Y, X=read_data_from_netcdf(y_filen, x_filen_list)
     
-    reg = fit_linear_to_data(Y, X)
-    plt.plot(Y, reg.predict(X), '.')
-    set_trace()
+    #reg = fit_linear_to_data(Y, X)
+    #plt.plot(Y, reg.predict(X), '.')
+    #print(Y)
+    #print(X)
+    #plt.show()
+    
+    logr = fit_logistic_to_data(Y, X)
+    plt.plot(logr.predict_proba(X)[:,1],Y, '.')
+    #set_trace()
     print(Y)
     print(X)
+    plt.show()
 
