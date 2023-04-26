@@ -1,0 +1,14 @@
+####Select an area from an .nc file with CDO in the terminal####
+
+#make sure your area (mask_region) is in .nc and in the same grid size as your input (input_global) .nc file.
+#Convert from .shp to .nc, if that is the case.
+
+##regrid to the same grid as your input_global.nc file in the terminal
+cdo remapnn,input_global.nc mask_region.nc mask_region_regrid.nc
+
+#compare mask_region.nc and mask_region_regrid.nc (on QGIS, for example) to check if not much was lost during regrid.
+#If it was, try are other functions to regrid. For example, remapbil
+
+##Crop the input file to the region 
+cdo div input_global.nc mask_region_regrid.nc input_region.nc
+  
