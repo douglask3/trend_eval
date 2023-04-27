@@ -21,7 +21,7 @@ def read_variable_from_netcdf(filename, dir = None, subset_function=None,):
     Y - a numpy array of the target variable
     X - an n-D numpy array of the feature variables 
     """
-    
+    if dir is not None: filename[0] = dir + filename[0]
     dataset = nc.Dataset(filename[0])[filename[1]]
     dataset = np.array(dataset).flatten()
     
@@ -59,7 +59,7 @@ def read_all_data_from_netcdf(y_filename, x_filename_list, add_1s_columne = Fals
     X=np.zeros([n,m])
 
     for i, filename in enumerate(x_filename_list):
-        X[:, i]=read_variable_from_netcdf(filename)
+        X[:, i]=read_variable_from_netcdf(filename, *args, **kw)
     
     cells_we_want = np.array([np.all(rw > -9e9) for rw in np.column_stack((X, Y))])
     Y = Y[cells_we_want]
@@ -136,13 +136,13 @@ def fit_logistic_to_data(Y, X):
 if __name__=="__main__":
     dir = "D:/Doutorado/Sanduiche/research/maxent-test/driving_and_obs_overlap/AllConFire_2000_2009/"
     dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
-    y_filen = [dir +"GFED4.1s_Burned_Fraction.nc", "Date"]
+    y_filen = ["GFED4.1s_Burned_Fraction.nc", "Date"]
     
     x_filen_list=[]
-    x_filen_list.append([dir + "precip.nc", "variable"])    
-    x_filen_list.append([dir + "tas.nc", "variable"]) 
+    x_filen_list.append(["precip.nc", "variable"])    
+    x_filen_list.append(["tas.nc", "variable"]) 
     
-    Y, X=read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True,
+    Y, X=read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True, dir = dir, 
                                    y_threshold = 0.01)
     
     #reg = fit_linear_to_data(Y, X)
