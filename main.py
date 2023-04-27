@@ -6,6 +6,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
+
+def sub_year_months(data, months_of_year):
+    months = []
+    for month in months_of_year: months.append(np.arange(month, data.shape[2], 12))
+    
+    months =  np.transpose(np.array(months)).flatten()
+    return data[:,:, months]
+
 def read_variable_from_netcdf(filename, dir = None, subset_function=None, *args, **kw):
     """Read data from a netCDF file 
     Assumes that the variables in the netcdf file all have the name "variable"
@@ -26,14 +34,15 @@ def read_variable_from_netcdf(filename, dir = None, subset_function=None, *args,
     if dir is not None: filename[0] = dir + filename[0]
     
     dataset = nc.Dataset(filename[0])[filename[1]]
-    dataset = np.array(dataset).flatten()
+    dataset = np.array(dataset)
     
     if subset_function is not None:
         dataset = subset_function(dataset, *args, **kw)
     
-    return dataset
+    return dataset.flatten()
 
-def read_all_data_from_netcdf(y_filename, x_filename_list, add_1s_columne = False, y_threshold = None, *args, **kw):
+def read_all_data_from_netcdf(y_filename, x_filename_list, add_1s_columne = False, 
+                              y_threshold = None, *args, **kw):
     """Read data from netCDF files 
     Assunes that values < -9E9, you dont want. This could be different in some circumstances.
     Arguments:
@@ -145,19 +154,15 @@ if __name__=="__main__":
                   "lightn.nc", "rhumid.nc", "cveg.nc", "pas.nc", "soilM.nc", 
                    "totalVeg.nc", "popDens.nc", "trees.nc"]
 
-    #x_filen_list.append(["precip.nc", "variable"])    
-    #x_filen_list.append(["tas.nc", "variable"]) 
-    
     Y, X=read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True, dir = dir, 
-                                   y_threshold = 0.01)
+                                   y_threshold = 0.01, subset_function = sub_year_months, 
+                                   months_of_year = [6, 7, 8])
     
     #reg = fit_linear_to_data(Y, X)
     #plt.plot(Y, reg.predict(X), '.')
     
     logr = fit_logistic_to_data(Y, X)
     plt.plot(logr.predict_proba(X)[:,1],Y, '.')
-    
-
     
     plt.show()
     print(Y)
