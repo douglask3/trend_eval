@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 def read_data_from_netcdf(y_filename, x_filename_list, 
-                          subset_function=None):
+                          subset_function=None, y_threshold = None):
     """Read data from a netCDF file 
     Assumes that the variables in the netcdf file all have the name "variable"
     Assunes that values < -9E9, you dont want. This could be different in some circumstances.
@@ -26,7 +26,7 @@ def read_data_from_netcdf(y_filename, x_filename_list,
     y_dataset=nc.Dataset(y_filename[0])[y_filename[1]]
     y_dataset = np.array(y_dataset).flatten()
     # Create a new categorical variable based on the threshold
-    y_dataset = np.where(y_dataset <= 0.010, 0, 1)
+    if y_threshold is not None: y_dataset = np.where(y_dataset >= y_threshold, 0, 1)
     #set_trace()
     #count number of 0 and 1 
     #counts = np.bincount(y_dataset)
@@ -119,13 +119,14 @@ def fit_logistic_to_data(Y, X):
 
 if __name__=="__main__":
     dir = "D:/Doutorado/Sanduiche/research/maxent-test/driving_and_obs_overlap/AllConFire_2000_2009/"
-    y_filen = [dir +"GFED4.1s_Burned_Area_Fraction.nc", "Date"]
+    dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
+    y_filen = [dir +"GFED4.1s_Burned_Fraction.nc", "Date"]
     #set_trace()
     x_filen_list=[]
     x_filen_list.append([dir + "precip.nc", "variable"])    
     x_filen_list.append([dir + "tas.nc", "variable"]) 
     
-    Y, X=read_data_from_netcdf(y_filen, x_filen_list)
+    Y, X=read_data_from_netcdf(y_filen, x_filen_list, y_threshold = 0.01)
     
     #reg = fit_linear_to_data(Y, X)
     #plt.plot(Y, reg.predict(X), '.')
