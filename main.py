@@ -6,15 +6,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
-def read_data_from_netcdf(y_filename, x_filename_list, 
-                          subset_function=None, y_threshold = None):
+def read_variable_from_netcdf(filename, dir = None, subset_function=None,):
     """Read data from a netCDF file 
     Assumes that the variables in the netcdf file all have the name "variable"
     Assunes that values < -9E9, you dont want. This could be different in some circumstances.
     Arguments:
 
-    y_filename -- a two element python list containing the name of the file and the target variable name
-    x_filename_list -- a python list of filename containing the feature variables
+    filename -- a two element python list containing the name of the file and the target variable name
+    dir -- directory file is in. Path can be in "filename" and None means no additional directory path needed.
     subset_function -- a function to be applied to each data set
 
     Returns:
@@ -23,35 +22,52 @@ def read_data_from_netcdf(y_filename, x_filename_list,
     X - an n-D numpy array of the feature variables 
     """
     
-    y_dataset=nc.Dataset(y_filename[0])[y_filename[1]]
-    y_dataset = np.array(y_dataset).flatten()
-    # Create a new categorical variable based on the threshold
-    if y_threshold is not None: y_dataset = np.where(y_dataset >= y_threshold, 0, 1)
-    #set_trace()
-    #count number of 0 and 1 
-    #counts = np.bincount(y_dataset)
-    #print(f"Number of 0's: {counts[0]}, Number of 1's: {counts[1]}")
-    #set_trace()
-        
+    dataset = nc.Dataset(filename[0])[filename[1]]
+    dataset = np.array(dataset).flatten()
+    
     if subset_function is not None:
-        Y=subset_function(y_dataset)
-    else:
-        Y=y_dataset
+        dataset = subset_function(dataset)
+    
+    return dataset
 
+def read_all_data_from_netcdf(y_filename, x_filename_list, add_1s_columne = False, y_threshold = None, *args, **kw):
+    """Read data from netCDF files 
+    Assunes that values < -9E9, you dont want. This could be different in some circumstances.
+    Arguments:
+
+    y_filename -- a two element python list containing the name of the file and the target variable name
+    x_filename_list -- a python list of filename containing the feature variables
+    y_threshold -- if converting y into boolean, the threshold we use to spit into 0's and 1's
+    add_1s_columne --useful for if using for regressions. Adds a variable of just 1's t rperesent y = SUM(a_i * x_i) + c
+    see read_variable_from_netcdf comments for *arg and **kw.
+
+    Returns:
+
+    Y - a numpy array of the target variable
+    X - an n-D numpy array of the feature variables 
+    """
+    Y = read_variable_from_netcdf(y_filename, *args, **kw)
+    # Create a new categorical variable based on the threshold
+    if y_threshold is not None:
+        Y = np.where(Y >= y_threshold, 0, 1)
+        #count number of 0 and 1 
+        counts = np.bincount(Y)
+        print(f"Number of 0's: {counts[0]}, Number of 1's: {counts[1]}")
+    
     n=len(Y)
     m=len(x_filename_list)
     X=np.zeros([n,m])
 
     for i, filename in enumerate(x_filename_list):
-
-        x_dataset = nc.Dataset(filename[0])[filename[1]]
-        x_dataset = np.array(x_dataset).flatten()
-        X[:, i]=x_dataset
+        X[:, i]=read_variable_from_netcdf(filename)
     
-    cells_we_want = np.array([np.all(rw > -9e9) for rw in X])
+    cells_we_want = np.array([np.all(rw > -9e9) for rw in np.column_stack((X, Y))])
     Y = Y[cells_we_want]
     X = X[cells_we_want, :]
-    X = np.column_stack((X, np.ones(len(X)))) # add a column of ones to X 
+
+    if add_1s_columne: 
+        X = np.column_stack((X, np.ones(len(X)))) # add a column of ones to X 
+
     return Y, X
 
 def read_data_from_csv(filename):
@@ -126,7 +142,8 @@ if __name__=="__main__":
     x_filen_list.append([dir + "precip.nc", "variable"])    
     x_filen_list.append([dir + "tas.nc", "variable"]) 
     
-    Y, X=read_data_from_netcdf(y_filen, x_filen_list, y_threshold = 0.01)
+    Y, X=read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True,
+                                   y_threshold = 0.01)
     
     #reg = fit_linear_to_data(Y, X)
     #plt.plot(Y, reg.predict(X), '.')
