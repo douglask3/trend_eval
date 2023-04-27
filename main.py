@@ -121,7 +121,7 @@ if __name__=="__main__":
     dir = "D:/Doutorado/Sanduiche/research/maxent-test/driving_and_obs_overlap/AllConFire_2000_2009/"
     dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
     y_filen = [dir +"GFED4.1s_Burned_Fraction.nc", "Date"]
-    #set_trace()
+    
     x_filen_list=[]
     x_filen_list.append([dir + "precip.nc", "variable"])    
     x_filen_list.append([dir + "tas.nc", "variable"]) 
@@ -130,14 +130,13 @@ if __name__=="__main__":
     
     #reg = fit_linear_to_data(Y, X)
     #plt.plot(Y, reg.predict(X), '.')
-    #print(Y)
-    #print(X)
-    #plt.show()
     
     logr = fit_logistic_to_data(Y, X)
     plt.plot(logr.predict_proba(X)[:,1],Y, '.')
-    #set_trace()
+    
+
+    
+    plt.show()
     print(Y)
     print(X)
-    plt.show()
 
