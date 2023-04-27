@@ -30,31 +30,10 @@ Jules_ISIMIP_fileID = ["jules-vn6p3_20crv3-era5_obsclim_histsoc_default_", "_glo
 
 outDir = 'outputs/jules_isimip_processed/'
 outFile = 'fire_on_JULES_ISIMIP-'
-
-## Which country or continent. If you define a country, it one look at the continent. Also clips the data to the extent of that country or continent. Use None is you don't want any
 Country = 'Brazil'
 Continent = 'South America'
-#Continent options: 'South America', 'Oceania', 'Europe', 'Afria', 'North America', 'Asia' 
 
-## Which ecoregion from Olson.  Use None is you don't want any
 ecoregions = [3, 7, 8]
-
-#Ecoregion options. You can pick more than one
-#1 Tropical and subtropical moist broadleaf forests
-#2 Tropical and subtropical dry broadleaf forests
-#3 Tropical and suptropical coniferous forests
-#4 Temperate broadleaf and mixed forests
-#5 Temperate Coniferous Forest
-#6 Boreal forests / Taiga
-#7 Tropical and subtropical grasslands, savannas and shrublands
-#8 Temperate grasslands, savannas and shrublands
-#9 Flooded grasslands and savannas
-#10 Montane grasslands and shrublands
-#11 Tundra
-#12 Mediterranean Forests, woodlands and scrubs
-#13 Deserts and xeric shrublands
-#14 Mangroves
-
 
 
 #some useful imports:
