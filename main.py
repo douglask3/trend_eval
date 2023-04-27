@@ -6,13 +6,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
-def read_variable_from_netcdf(filename, dir = None, subset_function=None,):
+def read_variable_from_netcdf(filename, dir = None, subset_function=None, *args, **kw):
     """Read data from a netCDF file 
     Assumes that the variables in the netcdf file all have the name "variable"
     Assunes that values < -9E9, you dont want. This could be different in some circumstances.
     Arguments:
 
-    filename -- a two element python list containing the name of the file and the target variable name
+    filename -- a string with filename or two element python list containing the name of the file and the target variable name. If just the sting of "filename" assumes variable name is "variable"
     dir -- directory file is in. Path can be in "filename" and None means no additional directory path needed.
     subset_function -- a function to be applied to each data set
 
@@ -21,12 +21,15 @@ def read_variable_from_netcdf(filename, dir = None, subset_function=None,):
     Y - a numpy array of the target variable
     X - an n-D numpy array of the feature variables 
     """
+
+    if isinstance(filename, str): filename = [filename, "variable"]
     if dir is not None: filename[0] = dir + filename[0]
+    
     dataset = nc.Dataset(filename[0])[filename[1]]
     dataset = np.array(dataset).flatten()
     
     if subset_function is not None:
-        dataset = subset_function(dataset)
+        dataset = subset_function(dataset, *args, **kw)
     
     return dataset
 
@@ -138,9 +141,12 @@ if __name__=="__main__":
     dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
     y_filen = ["GFED4.1s_Burned_Fraction.nc", "Date"]
     
-    x_filen_list=[]
-    x_filen_list.append(["precip.nc", "variable"])    
-    x_filen_list.append(["tas.nc", "variable"]) 
+    x_filen_list=["precip.nc", "tas.nc", "crop.nc", "humid.nc","vpd.nc", "csoil.nc", 
+                  "lightn.nc", "rhumid.nc", "cveg.nc", "pas.nc", "soilM.nc", 
+                   "totalVeg.nc", "popDens.nc", "trees.nc"]
+
+    #x_filen_list.append(["precip.nc", "variable"])    
+    #x_filen_list.append(["tas.nc", "variable"]) 
     
     Y, X=read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True, dir = dir, 
                                    y_threshold = 0.01)
