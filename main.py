@@ -109,7 +109,6 @@ def fit_logistic_to_data(Y, X):
    
     # Split data into train and test sets
     #X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=0)
-
     logr = LogisticRegression()
     logr.fit(X, Y)
 
