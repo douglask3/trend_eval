@@ -9,34 +9,7 @@ import matplotlib.pyplot as plt
 import iris
 from   libs.iris_plus import *
 from   libs.constrain_cubes_standard import *
-import iris.coord_categorisation as icc
 
-def sub_year_months(data, months_of_year):
-    """Selects months of a year from data   
-    Arguments:
-        data -- either an iris cube or a 3-d numpy array where 3rd, or either format, 
-                the 3rd dimenion is months with first month being Janurary.
-        months_of_year -- numeric, month of the year you are interested in
-                from 0 (Jan) to 11 (Dec)
-    Returns:
-        data of just months we are interested in.
-    """
-    try: 
-        icc.add_month_number(data, 'time')
-    except:
-        pass  
-    
-    months_of_year = np.array(months_of_year)+1
-    season = iris.Constraint(month_number = lambda cell, mnths = months_of_year: \
-                             np.any(np.abs(mnths - cell[0])<0.5))
-    return data.extract(season)
-    #icc.add_season_membership(data, 'time', season, name = 'season_membership')
-   
-    #months = []
-    #for month in months_of_year: months.append(np.arange(month, data.shape[2], 12))
-    
-    #months =  np.transpose(np.array(months)).flatten()
-    #return data[:,:, months]
 
 def read_variable_from_netcdf(filename, dir = None, subset_function = None, make_flat = False,
                               *args, **kw):
@@ -62,10 +35,6 @@ def read_variable_from_netcdf(filename, dir = None, subset_function = None, make
     else:
         dataset = iris.load_cube(dir + filename[0], filename[1], callback=sort_time)
 
-
-    #dataset = nc.Dataset(filename[0])[filename[1]]
-    #dataset = np.array(dataset)
-    
     if subset_function is not None:
         if not isinstance(subset_function, list): subset_function= [subset_function]        
         for FUN in subset_function: dataset = FUN(dataset, *args, **kw)
