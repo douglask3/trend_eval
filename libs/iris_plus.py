@@ -1,9 +1,11 @@
 
 import cf_units
 import iris
+from pdb import set_trace
 
 #Function to sort out the time dimension
 def sort_time(cube, field, filename):
+    
     cube.coord("time").bounds=None
     tcoord = cube.coord("time")
     tcoord.units = cf_units.Unit(tcoord.units.origin, calendar="gregorian")
@@ -18,8 +20,12 @@ def sort_time(cube, field, filename):
 
 
 def add_bounds(cube):
-    coords = ('longitude', 'latitude')
+    coords = ('time', 'longitude', 'latitude')
     for coord in coords:
-        if not cube.coord(coord).has_bounds():
+        try: 
             cube.coord(coord).guess_bounds()
+        except:
+            pass
+            #if not cube.coord(coord).has_bounds():
+            
     return(cube)

@@ -10,7 +10,7 @@ from ascend import shape
 import numpy as np
 
 def constrain_olson(cube, ecoregions):
-     """constrains a cube to Olson ecoregion
+    """constrains a cube to Olson ecoregion
     Assumes that the cube is iris and on a 0.5 defree grid
 
     Arguments:
@@ -48,9 +48,9 @@ def constrain_olson(cube, ecoregions):
         layer[mask] = np.nan
     return cube
 
-def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None):
+def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None, *args, **kw):
     
-     """constrains a cube to Natural Earth Country or continent.
+    """constrains a cube to Natural Earth Country or continent.
     Assumes that the cube is iris
     If Country is defined, it wont select Continent.
 
@@ -88,7 +88,7 @@ def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None)
     return cube
 
 def constrain_region(cube, ecoregions = None, Country = None, Continent = None, *args, **kw):
-     """ checks if any spatial constrains are set and contrains according to comments in functions above
+    """ checks if any spatial constrains are set and contrains according to comments in functions above
 
     Arguments:
 
