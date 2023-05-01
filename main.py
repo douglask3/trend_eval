@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 
 def sub_year_months(data, months_of_year):
-     """Selects months of a year from data   
+    """Selects months of a year from data   
     Arguments:
         data -- either an iris cube or a 3-d numpy array where 3rd, or either format, 
                 the 3rd dimenion is months with first month being Janurary.
@@ -39,9 +39,9 @@ def read_variable_from_netcdf(filename, dir = None, subset_function=None, *args,
         Y - a numpy vector of the target variable
     """
 
-    if isinstance(filename, str): filename = [filename, "variable"]
+    if isinstance(filename, str): filename = [filename, "Date"]
     if dir is not None: filename[0] = dir + filename[0]
-    
+    print('Opening: ' + filename[0])
     dataset = nc.Dataset(filename[0])[filename[1]]
     dataset = np.array(dataset)
     
