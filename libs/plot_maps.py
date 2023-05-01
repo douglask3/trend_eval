@@ -15,6 +15,20 @@ import math
 
 from   libs              import git_info
 
+   
+def plot_annual_mean(cube, levels, cmap, plot_name = None, scale = None, 
+                     Nrows = 1, Ncols = 1, plot_n = 1, *args, **kw):
+
+   
+    aa = cube.collapsed('time', iris.analysis.MEAN)
+    if plot_name is not None: aa.long_name = plot_name
+    if scale is not None: aa.data = aa.data * scale
+    
+    plot_lonely_cube(aa, Nrows, Ncols, plot_n, levels = levels, cmap = cmap, 
+                     colourbar = True, grayMask = True, *args, **kw)
+
+
+
 def plot_lonely_cube(cube, N = None, M = None, n = None, levels = [0], extend = 'neither', colourbar = True, *args, **kw):
 
     cf, levels, extend = plot_cube(cube, N,  M, n, levels = levels, extend = extend, *args, **kw)
