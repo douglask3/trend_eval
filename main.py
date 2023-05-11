@@ -71,7 +71,7 @@ def read_all_data_from_netcdf(y_filename, x_filename_list, add_1s_columne = Fals
         Y = np.where(Y >= y_threshold, 0, 1)
         #count number of 0 and 1 
         counts = np.bincount(Y)
-        print(f"Number of 0's: {counts[0]}, Number of 1's: {counts[1]}")
+        #print(f"Number of 0's: {counts[0]}, Number of 1's: {counts[1]}")
     
     n=len(Y)
     m=len(x_filename_list)
@@ -160,7 +160,7 @@ if __name__=="__main__":
                    "totalVeg.nc", "popDens.nc", "trees.nc"]
 
     Y, X, lmask = read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True, dir = dir, 
-                                     y_threshold = 0.1, subset_function = sub_year_months, 
+                                     y_threshold = 0.01, subset_function = sub_year_months, 
                                      months_of_year = [6, 7, 8])
     
     ## Perform regression
