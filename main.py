@@ -13,7 +13,7 @@ from   libs.plot_maps    import *
 
 
 
-def read_variable_from_netcdf(filename, dir = None, subset_function = None, make_flat = False,
+def read_variable_from_netcdf(filename, dir = '', subset_function = None, make_flat = False,
                               *args, **kw):
     """Read data from a netCDF file 
         Assumes that the variables in the netcdf file all have the name "variable"
