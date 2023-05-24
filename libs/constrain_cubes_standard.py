@@ -5,9 +5,49 @@
 #https://regionmask.readthedocs.io/en/v0.9.0/defined_scientific.html
 
 import iris
+import iris.coord_categorisation as icc
 import cartopy.io.shapereader as shpreader
 from ascend import shape
 import numpy as np
+
+import cartopy.crs as ccrs
+import geopandas as gp
+import regionmask
+from pdb import set_trace
+
+
+def ar6_region(cube,year_range, *args, **kw):
+    mask = regionmask.defined_regions.ar6
+    set_trace()
+
+def sub_year_range(cube, year_range, *args, **kw):
+    """Selects months of a year from data   
+    Arguments:
+        cube -- iris cube with time array with year information.
+        year_range -- numeric list of first to last year to cut
+    Returns:
+        cube of just years between to years provided.
+    """
+    return cube.extract(iris.Constraint(year=lambda cell: year_range[0] < cell <= year_range[1]))
+
+def sub_year_months(cube, months_of_year):
+    """Selects months of a year from data   
+    Arguments:
+        data -- iris cube with time array we can add add_month_number too.
+        months_of_year -- numeric, month of the year you are interested in
+                from 0 (Jan) to 11 (Dec)
+    Returns:
+        cube of just months we are interested in.
+    """
+    try: 
+        icc.add_month_number(cube, 'time')
+    except:
+        pass  
+    
+    months_of_year = np.array(months_of_year)+1
+    season = iris.Constraint(month_number = lambda cell, mnths = months_of_year: \
+                             np.any(np.abs(mnths - cell[0])<0.5))
+    return cube.extract(season)
 
 def constrain_olson(cube, ecoregions):
     """constrains a cube to Olson ecoregion
@@ -48,7 +88,7 @@ def constrain_olson(cube, ecoregions):
         layer[mask] = np.nan
     return cube
 
-def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None):
+def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None, *args, **kw):
     
     """constrains a cube to Natural Earth Country or continent.
     Assumes that the cube is iris
