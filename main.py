@@ -11,8 +11,6 @@ from   libs.iris_plus import *
 from   libs.constrain_cubes_standard import *
 from   libs.plot_maps    import *
 
-
-
 def read_variable_from_netcdf(filename, dir = '', subset_function = None, make_flat = False,
                               *args, **kw):
     """Read data from a netCDF file 
@@ -30,7 +28,16 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None, make_f
     Returns:
         Y - if make_flat, a numpy vector of the target variable, otherwise returns iris cube
     """
+<<<<<<< HEAD
     print(filename)
+=======
+
+    if isinstance(filename, str): filename = [filename, "Date"]
+    if dir is not None: filename[0] = dir + filename[0]
+    print('Opening: ' + filename[0])
+    dataset = nc.Dataset(filename[0])[filename[1]]
+    dataset = np.array(dataset)
+>>>>>>> main
     
     if isinstance(filename, str): 
         dataset = iris.load_cube(dir + filename, callback=sort_time)        

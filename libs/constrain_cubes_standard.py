@@ -9,6 +9,25 @@ import iris.coord_categorisation as icc
 import cartopy.io.shapereader as shpreader
 from ascend import shape
 import numpy as np
+import cartopy.crs as ccrs
+import geopandas as gp
+import regionmask
+from pdb import set_trace
+
+
+def ar6_region(cube,year_range, *args, **kw):
+    mask = regionmask.defined_regions.ar6
+    set_trace()
+
+def sub_year_range(cube, year_range, *args, **kw):
+    """Selects months of a year from data   
+    Arguments:
+        cube -- iris cube with time array with year information.
+        year_range -- numeric list of first to last year to cut
+    Returns:
+        cube of just years between to years provided.
+    """
+    return cube.extract(iris.Constraint(year=lambda cell: year_range[0] < cell <= year_range[1]))
 
 def sub_year_months(cube, months_of_year):
     """Selects months of a year from data   
