@@ -61,7 +61,7 @@ def fire_model(betas, X, inference = False):
 
 def fit_MaxEnt_probs_to_data(Y, X, niterations, 
                              out_dir = 'outputs/', filename = '', grab_old_trace = True):
-   """ Bayesian inerence routine that fits independant variables, X, to dependant, Y.
+    """ Bayesian inerence routine that fits independant variables, X, to dependant, Y.
         Based on the MaxEnt solution of probabilities. 
     Arguments:
         Y-- dependant variable as numpy 1d array
@@ -86,7 +86,7 @@ def fit_MaxEnt_probs_to_data(Y, X, niterations,
     """
 
     trace_file = out_dir + '/' + filename + '-nvariables_' + '-ncells_' + str(X.shape[0]) + \
-                 str(X.shape[1]) + '-niterations_' + str(niterations) + '.nc'
+                str(X.shape[1]) + '-niterations_' + str(niterations) + '.nc'
     
     if os.path.isfile(trace_file) and grab_old_trace: 
         return az.from_netcdf(trace_file)
@@ -132,7 +132,7 @@ if __name__=="__main__":
     Y, X, lmask = read_all_data_from_netcdf(y_filen, x_filen_list, 
                                            add_1s_columne = True, dir = dir, 
                                            subset_function = sub_year_months, 
-                                           months_of_year = months_of_year)
+                                             subset_function_args = {'months_of_year': months_of_year})
     
     filename = '_'.join([file[:-3] for file in x_filen_list]) + '-Month_' + \
                '_'.join([str(mn) for mn in months_of_year])
@@ -140,7 +140,7 @@ if __name__=="__main__":
     trace = fit_MaxEnt_probs_to_data(Y, X, filename = filename,  niterations = niterations)
     
     Obs = read_variable_from_netcdf(y_filen, dir, subset_function = sub_year_months, 
-                                     months_of_year = months_of_year)
+                                     subset_function_args = {'months_of_year': months_of_year})
 
     def select_post_param(name): 
         out = trace.posterior[name].values
