@@ -13,26 +13,18 @@ import re
 
 import sys
 import arviz as az
-#import multiprocessing as mp
-#mp.set_start_method('forkserver')
 
-def tt_sigmoid(x): 
-    return 1.0/(1.0 + tt.exp(-x))
-
-
-def np_sigmoid(x):
-    return 1.0/(1.0 + np.exp(-x))
-
-def np_MaxEnt(x, mu):
-    return np.log(np_sigmoid(mu)**x *(1-np_sigmoid(mu)**(1.0-x)))
 
 def MaxEnt_on_prob(x, mu):
-    '''return tt.sw1itch(
-        tt.lt(x, -150),
-        -p0,
-        -(1.0 - p0) *(1.0/(sigma * 2.506))*tt.exp(-0.5 * ((x-mu)/sigma)**2)
-    )
-    '''
+    """calculates the log-transformed continuous logit likelihood for x given mu when x 
+       and mu are probabilities between 0-1. 
+       Works with tensor variables.   
+    Arguments:
+        x -- x in P(x|mu). tensor 1-d array
+	mu -- mu in P(x|mu). tensor 1-d array
+    Returns:
+        1-d tensor array of liklihoods.
+    """
     mu = tt.switch(
         tt.lt(mu, 0.0000000000000000001),
         0.0000000000000000001, mu)
@@ -40,6 +32,21 @@ def MaxEnt_on_prob(x, mu):
     
 
 def fire_model(betas, X, inference = False):
+    """base fire model which takes indepedant variables and coefficants. 
+        At the moment, just a linear model fed through a logistic function to convert to 
+        burnt area/fire probablity. But we'll adapt that.   
+    Arguments:
+        betas -- numpy or tensor 1-d array of coefficants in linear model
+                y = betas[1] + X[:,1] + betas[2] + X[:,2] + .....
+	X -- numpy or tensor 2d array of indepenant variables, each columne a different 
+                variable, no. columns (no. variables) is same as length of betas.
+	inference -- boolean. If True, then used in bayesian inference and uses tensor maths. 
+			      If False, used in normal mode or prior/posterior sampling and 
+                                uses numpy.
+    Returns:
+        numpy or tensor (depdaning on 'inference' option) 1 d array of length equal to 
+	no. rows in X of burnt area/fire probabilities.
+    """
     if inference: 
         numPCK =  __import__('aesara').tensor
     else:
@@ -52,7 +59,32 @@ def fire_model(betas, X, inference = False):
     return BA
    
 
-def fit_MaxEnt_probs_to_data(Y, X, niterations, out_dir = 'outputs/', filename = '', grab_old_trace = True):
+def fit_MaxEnt_probs_to_data(Y, X, niterations, 
+                             out_dir = 'outputs/', filename = '', grab_old_trace = True):
+   """ Bayesian inerence routine that fits independant variables, X, to dependant, Y.
+        Based on the MaxEnt solution of probabilities. 
+    Arguments:
+        Y-- dependant variable as numpy 1d array
+	X -- numpy 2d array of indepenant variables, each columne a different variable
+	niterations -- number of iterations per chain when sampling the postior during 
+                NUTS inference 
+		(note default chains is normally 2 and is set by *args or **kw)
+	out_dir --string of path to output location. This is where the traces netcdf file 
+                will be saved.
+		Defauls is 'outputs'.
+	filename -- string of the start of the traces output name. Detault is blank. 
+		Some metadata will be saved in the filename, so even blank will 
+                save a file.
+	grab_old_trace -- Boolean. If True, and a filename starting with 'filename' and 
+                containing some of the same setting (saved in filename) exists,  it will open 
+                and return this rather than run a new one. Not all settings are saved for 
+                identifiation, so if in doubt, set to 'False'.
+	*args, **kw -- arguemts passed to 'pymc.sample'
+
+    Returns:
+        pymc traces, returned and saved to [out_dir]/[filneame]-[metadata].nc
+    """
+
     trace_file = out_dir + '/' + filename + '-nvariables_' + '-ncells_' + str(X.shape[0]) + \
                  str(X.shape[1]) + '-niterations_' + str(niterations) + '.nc'
     
