@@ -13,13 +13,42 @@ import cartopy.crs as ccrs
 import geopandas as gp
 import regionmask
 from pdb import set_trace
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
 
+def constrain_to_data(cube):
+    lats = cube.coord('latitude').points
+    lons = cube.coord('longitude').points
 
-def ar6_region(cube,year_range, *args, **kw):
-    mask = regionmask.defined_regions.ar6
-    set_trace()
+    lat_valid = lats[~np.isnan(cube.data).all(axis=(0,2))]
+    lon_valid = lons[~np.isnan(cube.data).all(axis=(0,1))]
 
-def sub_year_range(cube, year_range, *args, **kw):
+    lat_min, lat_max = np.min(lat_valid), np.max(lat_valid)
+    lon_min, lon_max = np.min(lon_valid), np.max(lon_valid)
+
+    constraint = iris.Constraint(latitude=lambda cell: (lat_min) <= cell <= (lat_max), 
+                                 longitude=lambda cell: (lon_min) <= cell <= (lon_max))
+    constrained_cube = cube.extract(constraint)
+
+    return(constrained_cube)
+    
+def ar6_region(cube, region_code):
+    lats = cube.coord('latitude').points
+    lons = cube.coord('longitude').points
+    region_code = regionmask.defined_regions.ar6.all.region_ids[region_code]
+    
+    mask = regionmask.defined_regions.ar6.all.mask(lons, lats)
+    region_mask = mask == region_code
+
+    
+    masked_data = np.where(region_mask, cube.data, np.nan)
+    masked_cube = cube.copy(data=masked_data)
+
+    cube_out = constrain_to_data(masked_cube)
+    
+    return cube_out
+
+def sub_year_range(cube, year_range):
     """Selects months of a year from data   
     Arguments:
         cube -- iris cube with time array with year information.
@@ -85,7 +114,9 @@ def constrain_olson(cube, ecoregions):
     for layer in cube.data:
         layer.mask[mask] = False
         layer[mask] = np.nan
-    return cube
+
+    cube_out = constrain_to_data(cube)
+    return cube_out
 
 def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None, *args, **kw):
     

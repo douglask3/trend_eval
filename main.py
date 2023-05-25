@@ -11,7 +11,8 @@ from   libs.iris_plus import *
 from   libs.constrain_cubes_standard import *
 from   libs.plot_maps    import *
 
-def read_variable_from_netcdf(filename, dir = '', subset_function = None, make_flat = False,
+def read_variable_from_netcdf(filename, dir = '', subset_function = None, 
+                              make_flat = False, subset_function_args = None,
                               *args, **kw):
     """Read data from a netCDF file 
         Assumes that the variables in the netcdf file all have the name "variable"
@@ -31,7 +32,6 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None, make_f
 
     print("Opening:")
     print(filename)
-
     
     if isinstance(filename, str): 
         dataset = iris.load_cube(dir + filename, callback=sort_time)        
@@ -42,8 +42,10 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None, make_f
             set_trace()
 
     if subset_function is not None:
-        if not isinstance(subset_function, list): subset_function= [subset_function]        
-        for FUN in subset_function: dataset = FUN(dataset, *args, **kw)
+        if isinstance(subset_function, list):
+            for FUN, args in zip(subset_function, subset_function_args):                                        dataset = FUN(dataset, **args)
+        else: dataset = subset_function(dataset, **subset_function_args)     
+        
     
     if make_flat: dataset = dataset.data.flatten()
     
@@ -160,9 +162,11 @@ if __name__=="__main__":
                   "lightn.nc", "rhumid.nc", "cveg.nc", "pas.nc", "soilM.nc", 
                    "totalVeg.nc", "popDens.nc", "trees.nc"]
 
-    Y, X, lmask = read_all_data_from_netcdf(y_filen, x_filen_list, add_1s_columne = True, dir = dir, 
-                                     y_threshold = 0.01, subset_function = sub_year_months, 
-                                     months_of_year = [6, 7, 8])
+    Y, X, lmask = read_all_data_from_netcdf(y_filen, x_filen_list, 
+                                           add_1s_columne = True, dir = dir, y_threshold = 0.1,
+                                           subset_function = [sub_year_months, ar6_region], 
+                                           subset_function_args = [{'months_of_year': [6, 7, 8]},
+                                                                   {'region_code' : 'NWS'}])
     
     ## Perform regression
     #reg = fit_linear_to_data(Y, X)
@@ -173,7 +177,7 @@ if __name__=="__main__":
     
     ## Predict and plot training period from fitted model
     Obs = read_variable_from_netcdf(y_filen, dir, subset_function = sub_year_months, 
-                                     months_of_year = [6, 7, 8])
+                                     subset_function_args = {'months_of_year': [6, 7, 8]})
     Pred = Obs.copy()
     pred = Pred.data.copy().flatten()
     pred[lmask] = logr.predict_proba(X)[:,0]
