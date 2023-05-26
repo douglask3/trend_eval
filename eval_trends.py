@@ -2,6 +2,72 @@ from main import *
 import numpy  as np
 import matplotlib.pyplot as plt
 from pdb import set_trace
+import os
+
+import pymc  as pm
+import arviz as az
+
+def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertations = 100):
+    
+    if grab_trace:
+        tracesID_save = 'temp/' + tracesID_save + '_' + str(ys.shape[0]) 
+        if len(ys.shape) > 1:  tracesID_save = tracesID_save + '_' + str(ys.shape[1]) 
+        tracesID_save = tracesID_save + 'n_itertations' + '-' + str(n_itertations) + '.nc'
+        if os.path.isfile(tracesID_save): return az.from_netcdf(tracesID_save)
+    
+    tm = np.arange(0, len(ys))
+    with pm.Model() as model:  # model specifications in PyMC are wrapped in a with-statement
+        # Define priors
+        epsilon = pm.LogNormal("epsilon", 0, 10)
+        ys_no_nan = ys[~np.isnan(ys)]
+        beta = pm.Normal("beta", 0, (np.max(ys_no_nan) - np.min(ys_no_nan))/(\
+                                     np.max(tm) - np.min(tm)))
+
+        if len(ys.shape) == 1: 
+            y0 = pm.Normal("y0", np.mean(ys_no_nan), sigma=np.std(ys_no_nan))
+            prediction = y0 + beta * tm
+        else:
+            #def define_y0(i):
+                
+            #    y = ys[:,i]
+            #    y = y[~np.isnan(y)]
+            #    
+            #    yi = pm.Normal('y' + str(i), mu = np.mean(y), sigma = np.std(y))
+            #    return(yi)
+
+            y0 = pm.Normal('y0', np.mean(ys_no_nan), sigma=np.std(ys_no_nan), 
+                           shape = ys.shape[1])
+            
+            
+            tm_in = np.empty(0)
+            y0_id = np.empty(0)
+            for i in range(ys.shape[1]):
+                tm_in = np.append(tm_in, tm[~np.isnan(ys[:,i])])
+                y0_id = np.append(y0_id, np.repeat(i, np.sum(~np.isnan(ys[:,i]))))
+        
+            prediction = y0[[int(id) for id in y0_id]] + beta * tm_in
+
+        # Define likelihood
+        likelihood = pm.Normal("mod", mu=prediction, sigma=epsilon, observed=ys)
+    
+        # Inference!
+        # draw 1000 posterior samples using NUTS sampling
+        trace = pm.sample(n_itertations, return_inferencedata=True)
+
+    if grab_trace:
+        trace.to_netcdf(tracesID_save)
+    return(trace)
+
+def compare_gradients(Y, X, tracesID_save, *args, **kw):
+
+    
+    Y = np.log(Y)
+    X = np.log(X)
+    Y_grad = run_time_series_regression(Y, tracesID_save + '-Y', *args, **kw)
+    X_grad = run_time_series_regression(X, tracesID_save + '-X', *args, **kw)
+    
+    set_trace()
+
 
 if __name__=="__main__":
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
@@ -13,17 +79,26 @@ if __name__=="__main__":
     filenames_observation = [dir_observation + file for file in filenames_observation]
 
     year_range = [1996, 2020]
+    ar6_regions =  ['NWS', 'NSA', 'SAH', 'WAF']
+    n_itertations = 1000
+    tracesID = 'burnt_area_u-cc669'
 
+    
     subset_functions = [sub_year_range, ar6_region, make_time_series]
     subset_function_args = [{'year_range': year_range},
-                            {'region_code' : ['NWS', 'NSA', 'SAH', 'WAF']}, 
+                            {'region_code' : ar6_regions}, 
                             {'annual_aggregate' : iris.analysis.SUM}]
         
-
+    
     Y, X = read_all_data_from_netcdf(filename_model, filenames_observation, 
                                      time_series = year_range, check_mask = False,
                                      subset_function = subset_functions, 
                                      subset_function_args = subset_function_args)
+
+    tracesID_save = tracesID + '-' + \
+                        '_'.join(ar6_regions) + '-' + \
+                        '_'.join([str(year) for year in year_range])
+    logr = compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
     set_trace()
 #"/"
 
