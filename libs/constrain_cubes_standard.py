@@ -55,9 +55,7 @@ def ar6_region(cube, region_code):
     lats = cube.coord('latitude').points
     lons = cube.coord('longitude').points
     if not isinstance(region_code, list): region_code = [region_code]
-    region_code = [regionmask.defined_regions.ar6.all.region_ids[rc] for rc in region_code]
-   
-    
+    region_code = [regionmask.defined_regions.ar6.all.region_ids[rc] for rc in region_code] 
     
     mask = regionmask.defined_regions.ar6.all.mask(lons, lats)
     region_mask = mask.isin(region_code)
@@ -70,7 +68,7 @@ def ar6_region(cube, region_code):
     
     return cube_out
 
-def sub_year_range(cube, year_range):
+def sub_year_range(cube, year_range, extend_range = False):
     """Selects months of a year from data   
     Arguments:
         cube -- iris cube with time array with year information.
@@ -78,7 +76,17 @@ def sub_year_range(cube, year_range):
     Returns:
         cube of just years between to years provided.
     """
-    return cube.extract(iris.Constraint(year=lambda cell: year_range[0] < cell <= year_range[1]))
+    out = cube.extract(iris.Constraint(year=lambda cell: year_range[0] < cell <= year_range[1]))
+    
+    if extend_range and (not out.coord('year').points[ 0] == year_range[0] \
+                      or not out.coord('year').points[-1] == year_range[1]): 
+        num_years = year_range[1] - year_range[0] + 1
+
+        extended_cube = iris.cube.CubeList()
+        for year in range(year_range[0], year_range[1] + 1):
+            extended_cube.append(cube.extract(iris.Constraint(year=year)))
+        set_trace()
+    return out
 
 def sub_year_months(cube, months_of_year):
     """Selects months of a year from data   
