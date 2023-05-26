@@ -88,27 +88,24 @@ def fit_MaxEnt_probs_to_data(Y, X, niterations,
     trace_file = out_dir + '/' + filename + '-nvariables_' + '-ncells_' + str(X.shape[0]) + \
                 str(X.shape[1]) + '-niterations_' + str(niterations) + '.nc'
     
+    ## check if trace file exsts and return if wanted
     if os.path.isfile(trace_file) and grab_old_trace: 
         return az.from_netcdf(trace_file)
 
     with pm.Model() as max_ent_model:
-        
-        #betas = pm.Normal("betas", mu=0, sigma=1, shape = X.shape[1])
+        ## set priorts
         betas = pm.Normal('betas', mu = 0, sigma = 1, shape = X.shape[1], 
                           initval =np.repeat(0.5, X.shape[1]))
-        
-        mu = fire_model(betas, X, inference = True)
-        
-        #y = pm.math.sum(betas * X)
-        #y = beta1 * X[:,0] + beta2 * X[:,1] + beta3# * X[:,3]
-        
-        
+        ## build model
+        mu = fire_model(betas, X, inference = True)   
+    
+        ## define error measurement
         error = pm.DensityDist("error", mu, logp = MaxEnt_on_prob, observed = Y)
-        try:
-            trace = pm.sample(niterations, return_inferencedata=True, cores = 1)
-        except:
-            browser()
+
+        ## sample model
+        trace = pm.sample(niterations, return_inferencedata=True, cores = 1)
         
+        ## save trace file
         trace.to_netcdf(trace_file)
     return trace
 
