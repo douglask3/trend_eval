@@ -43,7 +43,8 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None,
 
     if subset_function is not None:
         if isinstance(subset_function, list):
-            for FUN, args in zip(subset_function, subset_function_args):                                        dataset = FUN(dataset, **args)
+            for FUN, args in zip(subset_function, subset_function_args):
+                dataset = FUN(dataset, **args)
         else: dataset = subset_function(dataset, **subset_function_args)     
         
     
@@ -146,7 +147,6 @@ def fit_logistic_to_data(Y, X):
     #X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=0)
     logr = LogisticRegression()
     logr.fit(X, Y)
-
     y_pred = logr.predict(X)
 
     return logr
@@ -166,7 +166,7 @@ if __name__=="__main__":
                                            add_1s_columne = True, dir = dir, y_threshold = 0.1,
                                            subset_function = [sub_year_months, ar6_region], 
                                            subset_function_args = [{'months_of_year': [6, 7, 8]},
-                                                                   {'region_code' : 'NWS'}])
+                                                                   {'region_code' : 'NSA'}])
     
     ## Perform regression
     #reg = fit_linear_to_data(Y, X)
@@ -176,8 +176,10 @@ if __name__=="__main__":
     #plt.plot(logr.predict_proba(X)[:,1], Y, '.')
     
     ## Predict and plot training period from fitted model
-    Obs = read_variable_from_netcdf(y_filen, dir, subset_function = sub_year_months, 
-                                     subset_function_args = {'months_of_year': [6, 7, 8]})
+    Obs = read_variable_from_netcdf(y_filen, dir, 
+                                           subset_function = [sub_year_months, ar6_region],  
+                                           subset_function_args = [{'months_of_year': [6, 7, 8]},
+                                                                   {'region_code' : 'NSA'}])
     Pred = Obs.copy()
     pred = Pred.data.copy().flatten()
     pred[lmask] = logr.predict_proba(X)[:,0]
