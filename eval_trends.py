@@ -10,11 +10,11 @@ import arviz as az
 def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertations = 100):
     
     if grab_trace:
-        tracesID_save = 'temp/' + tracesID_save + '_' + str(ys.shape[0]) 
+        tracesID_save = tracesID_save + '_' + str(ys.shape[0]) 
         if len(ys.shape) > 1:  tracesID_save = tracesID_save + '_' + str(ys.shape[1]) 
         tracesID_save = tracesID_save + 'n_itertations' + '-' + str(n_itertations) + '.nc'
         if os.path.isfile(tracesID_save): return az.from_netcdf(tracesID_save)
-    
+        print(tracesID_save)
     tm = np.arange(0, len(ys))
     with pm.Model() as model:  # model specifications in PyMC are wrapped in a with-statement
         # Define priors
@@ -51,9 +51,11 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
         likelihood = pm.Normal("mod", mu=prediction, sigma=epsilon, observed=ys)
     
         # Inference!
-        # draw 1000 posterior samples using NUTS sampling
-        trace = pm.sample(n_itertations, return_inferencedata=True)
-
+        # draw n_itertations posterior samples using NUTS sampling
+        try:
+            trace = pm.sample(n_itertations, return_inferencedata=True)
+        except:
+            set_trace()
     if grab_trace:
         trace.to_netcdf(tracesID_save)
     return(trace)
@@ -61,13 +63,11 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
 def compare_gradients(Y, X, tracesID_save, *args, **kw):
 
     
-    Y = np.log(Y)
-    X = np.log(X)
+    Y = np.log(Y + 0.000000000000001)
+    X = np.log(X + 0.000000000000001)
     Y_grad = run_time_series_regression(Y, tracesID_save + '-Y', *args, **kw)
     X_grad = run_time_series_regression(X, tracesID_save + '-X', *args, **kw)
     
-    set_trace()
-
 
 if __name__=="__main__":
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
@@ -79,27 +79,41 @@ if __name__=="__main__":
     filenames_observation = [dir_observation + file for file in filenames_observation]
 
     year_range = [1996, 2020]
-    ar6_regions =  ['NWS', 'NSA', 'SAH', 'WAF']
+    ar6_regions =  regionmask.defined_regions.ar6.land.region_ids.items()
     n_itertations = 1000
     tracesID = 'burnt_area_u-cc669'
 
-    
-    subset_functions = [sub_year_range, ar6_region, make_time_series]
-    subset_function_args = [{'year_range': year_range},
-                            {'region_code' : ar6_regions}, 
-                            {'annual_aggregate' : iris.analysis.SUM}]
+    for ar6_region_code, value in ar6_regions:
         
-    
-    Y, X = read_all_data_from_netcdf(filename_model, filenames_observation, 
-                                     time_series = year_range, check_mask = False,
-                                     subset_function = subset_functions, 
-                                     subset_function_args = subset_function_args)
+        if not isinstance(ar6_region_code, str): continue
+        if ar6_region_code == 'EAN' or ar6_region_code == 'WNA': continue
+        if len(ar6_region_code) > 5: continue
+        print(ar6_region_code)
+        subset_functions = [sub_year_range, ar6_region, make_time_series]
+        subset_function_args = [{'year_range': year_range},
+                            {'region_code' : [ar6_region_code]}, 
+                            {'annual_aggregate' : iris.analysis.SUM}]
 
-    tracesID_save = tracesID + '-' + \
-                        '_'.join(ar6_regions) + '-' + \
-                        '_'.join([str(year) for year in year_range])
-    logr = compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
-    set_trace()
+        tracesID_save = 'temp/eval_trends' + tracesID + '-' + \
+                            '_'.join(ar6_region_code) + '-' + \
+                            '_'.join([str(year) for year in year_range])
+        
+        
+        Y_temp_file = tracesID_save + '-Y' + '.npy'
+        X_temp_file = tracesID_save + '-X' + '.npy'
+        if os.path.isfile(Y_temp_file) and os.path.isfile(X_temp_file): 
+            Y = np.load(Y_temp_file)
+            X = np.load(X_temp_file)
+        else :
+            Y, X = read_all_data_from_netcdf(filename_model, filenames_observation, 
+                                             time_series = year_range, check_mask = False,
+                                             subset_function = subset_functions, 
+                                             subset_function_args = subset_function_args)
+            np.save(Y_temp_file, Y)  
+            np.save(X_temp_file, X)
+        
+        compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
+    
 #"/"
 
 #"GFED4.nc", "MCD45.nc", "meris_v2.nc"
