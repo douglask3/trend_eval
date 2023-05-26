@@ -63,58 +63,36 @@ def ar6_region(cube, region_code):
 
     
     masked_data = np.where(region_mask, cube.data, np.nan)
-    masked_cube = cube.copy(data=masked_data)
-
+    masked_cube = cube.copy()   
+    masked_cube.data = masked_data
+    masked_cube.data[ masked_cube.data>1e15] = np.nan
+    
     cube_out = constrain_to_data(masked_cube)
     
     return cube_out
 
-def make_time_series(cube, annual_aggregate = None, year_range = None, extend_range = False):
+def make_time_series(cube, annual_aggregate = None, year_range = None):
     if year_range is not None:
         cube = sub_year_range(cube, year_range)
-
-    collapsed_cube = cube.collapsed(['latitude', 'longitude'], iris.analysis.MEAN)
+    
+    try:
+        cube.coord('latitude').guess_bounds()
+    except:
+        pass
+    try:
+        cube.coord('longitude').guess_bounds()
+    except:
+        pass
+    ## in km2
+    weights = iris.analysis.cartography.area_weights(cube)/1000000.0 
+    cube.data[np.isnan(cube.data)] = 0.0
+    collapsed_cube = cube.collapsed(['latitude', 'longitude'], iris.analysis.SUM, 
+                                    weights=weights)
+    
     if annual_aggregate is not None:
         collapsed_cube = collapsed_cube.aggregated_by('year', annual_aggregate)
     
-        years = collapsed_cube.coord('year').points
         
-        if extend_range: 
-            if not years[ 0] == year_range[0]:
-                extra_years = years[ 0] - year_range[0]
-                extended_cube = collapsed_cube.copy()[0:(extra_years)]
-                extended_cube.data = np.full((extra_years,), np.nan)
-                extended_cube.coord('year').points = extended_cube.coord('year').points - \
-                                                     extended_cube.coord('year').points[-1] + \
-                                                     extended_cube.coord('year').points[0]-1
-
-                time_coord = extended_cube.coord('time')
-                original_start_date = time_coord.units.num2date(time_coord.points[0])
-                desired_start_date = datetime.datetime(year_range[0], 1, 1)
-
-                time_difference = (desired_start_date - original_start_date).days
-
-                shifted_time_points = time_coord.points + time_difference
-                extended_cube.coord('time').points = shifted_time_points
-                extended_cube.data = extended_cube.data.astype(collapsed_cube.data.dtype)
-                
-
-                cube1 = collapsed_cube
-                cube2 = extended_cube
-
-                set_trace()
- 
-                cubes = iris.cube.CubeList([extended_cube, collapsed_cube])
-                set_trace()
-                combined_cube = iris.cube.CubeList([extended_cube, collapsed_cube]).concatenate_cube()
-                
-                dat = np.concatenate([np.full((extra_years,), np.nan), collapsed_cube.data])
-                concatenated_data = np.concatenate([extended_cube.data, annual_mean_cube.data])
-                
-            
-            if not years[-1] == year_range[1]: 
-                set_trace()
-
     return collapsed_cube
 
 def sub_year_range(cube, year_range):
