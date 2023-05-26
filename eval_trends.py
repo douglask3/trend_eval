@@ -27,13 +27,6 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
             y0 = pm.Normal("y0", np.mean(ys_no_nan), sigma=np.std(ys_no_nan))
             prediction = y0 + beta * tm
         else:
-            #def define_y0(i):
-                
-            #    y = ys[:,i]
-            #    y = y[~np.isnan(y)]
-            #    
-            #    yi = pm.Normal('y' + str(i), mu = np.mean(y), sigma = np.std(y))
-            #    return(yi)
 
             y0 = pm.Normal('y0', np.mean(ys_no_nan), sigma=np.std(ys_no_nan), 
                            shape = ys.shape[1])
@@ -60,14 +53,38 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
         trace.to_netcdf(tracesID_save)
     return(trace)
 
-def compare_gradients(Y, X, tracesID_save, *args, **kw):
 
+def compare_gradients(beta_Y, beta_X):
+    beta_Y = beta_Y.flatten()
+    beta_X = beta_X.flatten()
+    
+    min_beta = np.min(np.append(beta_Y, beta_X))
+    max_beta = np.max(np.append(beta_X, beta_X))
+    nbins = int(np.ceil(np.sqrt(beta_X.size))) 
+
+    bins = np.linspace(min_beta, max_beta, nbins)
+    def normHist(beta) :
+        out = np.histogram(beta, bins)[0]
+        return out / np.max(out)
+
+    distY = normHist(beta_Y)
+    distX = normHist(beta_X)
+    distZ = np.min(np.array([distY, distX]), axis = 0)
+    
+    return np.sqrt(np.sum(distY*distZ)/np.sum(distY*distY))
+    
+
+    
+def find_and_compare_gradients(Y, X, tracesID_save, *args, **kw):
     
     Y = np.log(Y + 0.000000000000001)
     X = np.log(X + 0.000000000000001)
+    set_trace()
     Y_grad = run_time_series_regression(Y, tracesID_save + '-Y', *args, **kw)
     X_grad = run_time_series_regression(X, tracesID_save + '-X', *args, **kw)
-    
+    prob = compare_gradients(Y_grad.posterior['beta'].values,
+                             X_grad.posterior['beta'].values)
+    return prob
 
 if __name__=="__main__":
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
@@ -79,15 +96,16 @@ if __name__=="__main__":
     filenames_observation = [dir_observation + file for file in filenames_observation]
 
     year_range = [1996, 2020]
-    ar6_regions =  regionmask.defined_regions.ar6.land.region_ids.items()
+    ar6_regions =  regionmask.defined_regions.ar6.land.region_ids
     n_itertations = 1000
     tracesID = 'burnt_area_u-cc669'
 
-    for ar6_region_code, value in ar6_regions:
-        
-        if not isinstance(ar6_region_code, str): continue
-        if ar6_region_code == 'EAN' or ar6_region_code == 'WNA': continue
-        if len(ar6_region_code) > 5: continue
+    
+    def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:   
+     
+        if not isinstance(ar6_region_code, str): return 
+        if ar6_region_code == 'EAN' or ar6_region_code == 'WAN': return
+        if len(ar6_region_code) > 5: return
         print(ar6_region_code)
         subset_functions = [sub_year_range, ar6_region, make_time_series]
         subset_function_args = [{'year_range': year_range},
@@ -112,8 +130,13 @@ if __name__=="__main__":
             np.save(Y_temp_file, Y)  
             np.save(X_temp_file, X)
         
-        compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
-    
+        prob = find_and_compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
+        return ar6_region_code, value, prob
+
+    result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
+                                    ar6_regions.items()))
+    result = list(filter(lambda x: x is not None, result))
+    set_trace()
 #"/"
 
 #"GFED4.nc", "MCD45.nc", "meris_v2.nc"
