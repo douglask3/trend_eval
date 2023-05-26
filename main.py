@@ -166,7 +166,7 @@ if __name__=="__main__":
                                            add_1s_columne = True, dir = dir, y_threshold = 0.1,
                                            subset_function = [sub_year_months, ar6_region], 
                                            subset_function_args = [{'months_of_year': [6, 7, 8]},
-                                                                   {'region_code' : 'NSA'}])
+                                                                   {'region_code' : ['NWS', 'NSA']}])
     
     ## Perform regression
     #reg = fit_linear_to_data(Y, X)
@@ -179,7 +179,7 @@ if __name__=="__main__":
     Obs = read_variable_from_netcdf(y_filen, dir, 
                                            subset_function = [sub_year_months, ar6_region],  
                                            subset_function_args = [{'months_of_year': [6, 7, 8]},
-                                                                   {'region_code' : 'NSA'}])
+                                                                   {'region_code' : ['NWS', 'NSA']}])
     Pred = Obs.copy()
     pred = Pred.data.copy().flatten()
     pred[lmask] = logr.predict_proba(X)[:,0]

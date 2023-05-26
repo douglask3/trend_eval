@@ -17,6 +17,14 @@ import iris.quickplot as qplt
 import matplotlib.pyplot as plt
 
 def constrain_to_data(cube):
+    """constrain cube to the lats and lons that contain data that isn't 'nan'   
+    Arguments:
+        cube -- iris cube with 'latitude' and 'londitude' coordinates. 
+                Can have extra dimentions.
+    Returns:
+        cube of same or smaller extent restircited to range of lats and lons where data.
+        cube has useable data.
+    """
     lats = cube.coord('latitude').points
     lons = cube.coord('longitude').points
 
@@ -33,12 +41,26 @@ def constrain_to_data(cube):
     return(constrained_cube)
     
 def ar6_region(cube, region_code):
+    """constrain cube an ar6 region
+    Arguments:
+        cube -- iris cube with 'latitude' and 'londitude' coordinates. 
+                Can have extra dimentions.
+	region_code -- AR6 region, which can be defined either as a number, 
+                region code or region name. Can be a list of multiple regions if you want to 
+                constrain to more than one
+    Returns:
+        cube of same or smaller extent restircited to range of lats and lons with areas outside 
+	of AR6 region masked out.
+    """
     lats = cube.coord('latitude').points
     lons = cube.coord('longitude').points
-    region_code = regionmask.defined_regions.ar6.all.region_ids[region_code]
+    if not isinstance(region_code, list): region_code = [region_code]
+    region_code = [regionmask.defined_regions.ar6.all.region_ids[rc] for rc in region_code]
+   
+    
     
     mask = regionmask.defined_regions.ar6.all.mask(lons, lats)
-    region_mask = mask == region_code
+    region_mask = mask.isin(region_code)
 
     
     masked_data = np.where(region_mask, cube.data, np.nan)
@@ -79,7 +101,7 @@ def sub_year_months(cube, months_of_year):
 
 def constrain_olson(cube, ecoregions):
     """constrains a cube to Olson ecoregion
-    Assumes that the cube is iris and on a 0.5 defree grid
+    Assumes that the cube is iris and on a 0.5 degree grid
 
     Arguments:
 
@@ -102,7 +124,8 @@ def constrain_olson(cube, ecoregions):
             14 Mangroves
 
     Returns:
-    Input cube with areas outside of selected Olson biomes masked out.
+    Input cube with areas outside of selected Olson biomes masked out, 
+    constrained to that region
     """
     biomes = iris.load_cube('data/wwf_terr_ecos_0p5.nc')
     mask = biomes.copy()
