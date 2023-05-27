@@ -19,7 +19,7 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
     with pm.Model() as model:  # model specifications in PyMC are wrapped in a with-statement
         # Define priors
         epsilon = pm.LogNormal("epsilon", 0, 10)
-        ys_no_nan = ys[~np.isnan(ys)]
+        ys_no_nan = ys.T[~np.isnan(ys.T)]
         beta = pm.Normal("beta", 0, (np.max(ys_no_nan) - np.min(ys_no_nan))/(\
                                      np.max(tm) - np.min(tm)))
 
@@ -41,13 +41,14 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
             prediction = y0[[int(id) for id in y0_id]] + beta * tm_in
 
         # Define likelihood
-        likelihood = pm.Normal("mod", mu=prediction, sigma=epsilon, observed=ys)
-    
+        likelihood = pm.Normal("mod", mu=prediction, sigma=epsilon, observed=ys_no_nan)
+        
         # Inference!
         # draw n_itertations posterior samples using NUTS sampling
         try:
             trace = pm.sample(n_itertations, return_inferencedata=True)
         except:
+            print("trace gone wrong")
             set_trace()
     if grab_trace:
         trace.to_netcdf(tracesID_save)
@@ -75,15 +76,36 @@ def compare_gradients(beta_Y, beta_X):
     
 
     
-def find_and_compare_gradients(Y, X, tracesID_save, *args, **kw):
+def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
     
-    Y = np.log(Y + 0.000000000000001)
-    X = np.log(X + 0.000000000000001)
-    set_trace()
+    Y = np.log(Y0 + 0.000000000000001)
+    X = np.log(X0 + 0.000000000000001)
+    
     Y_grad = run_time_series_regression(Y, tracesID_save + '-Y', *args, **kw)
     X_grad = run_time_series_regression(X, tracesID_save + '-X', *args, **kw)
-    prob = compare_gradients(Y_grad.posterior['beta'].values,
-                             X_grad.posterior['beta'].values)
+
+    def get_values(trace, var): 
+        out = trace.posterior[var].values
+        return out.reshape((-1,) + out.shape[2:])
+
+    betaY = Y_grad.posterior['beta'].values
+    betaX = X_grad.posterior['beta'].values
+    
+    prob = compare_gradients(betaY, betaX)
+
+    betaY = get_values(Y_grad, 'beta')
+    betaX = get_values(X_grad, 'beta')
+    alphaY =  get_values(Y_grad, 'y0')
+    alphaX =  get_values(X_grad, 'y0')
+    
+    outFile = tracesID_save + '-XY.csv'
+    outarr = np.vstack((Y0, X0.T)).T
+    np.savetxt(outFile, outarr, delimiter=',')
+
+    outFile = tracesID_save + '-TRACE.csv'
+    
+    outarr = np.vstack((betaY, alphaY, betaX, alphaX.T)).T
+    np.savetxt(outFile, outarr, delimiter=',')
     return prob
 
 if __name__=="__main__":
@@ -111,9 +133,9 @@ if __name__=="__main__":
         subset_function_args = [{'year_range': year_range},
                             {'region_code' : [ar6_region_code]}, 
                             {'annual_aggregate' : iris.analysis.SUM}]
-
+        
         tracesID_save = 'temp/eval_trends' + tracesID + '-' + \
-                            '_'.join(ar6_region_code) + '-' + \
+                            'REGION---' + ar6_region_code + '---' + \
                             '_'.join([str(year) for year in year_range])
         
         
