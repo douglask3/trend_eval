@@ -1,4 +1,5 @@
 from main import *
+from   libs.plot_AR6_hexagons    import *
 import numpy  as np
 import matplotlib.pyplot as plt
 from pdb import set_trace
@@ -106,10 +107,7 @@ def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
     return prob
 
 if __name__=="__main__":
-    import geopandas as gpd
-    import geoplot
-    from matplotlib.colors import TwoSlopeNorm
-    import pandas as pd    
+      
 
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
 
@@ -160,27 +158,11 @@ if __name__=="__main__":
     result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
                                     ar6_regions.items()))
     result = list(filter(lambda x: x is not None, result))
-    
-    hexagons = gpd.read_file('/scratch/cburton/scratch/ISIMIP3a/Data/WeightedZones.gpkg').copy()
-    hexagons['Model_results'] = np.nan
-    for res in result:
-        i_reg = hexagons['label'] == res[0]
-        if np.sum(i_reg) == 0: continue
-        if np.sum(i_reg) >  1: set_trace()
-        hexagons['Model_results'][i_reg] = res[2]*100
 
-    norm = TwoSlopeNorm(vmin=0.0, vcenter=50.0, vmax=100.0)
-    cbar = plt.cm.ScalarMappable(norm=norm, cmap='RdBu',)
-
-    ax = hexagons.plot()
-    hexagons.plot(column='Model_results', cmap='RdBu', norm=norm, 
-                  linewidth=0.8, edgecolor='gray', legend=False, ax=ax)
-    hexagons.apply(lambda x: ax.annotate(text=x['label'], 
-                   xy=x.geometry.centroid.coords[0], ha='center'), axis=1);
-    plt.colorbar(cbar,ticks=[0, 25, 50, 75, 100],orientation='horizontal', 
-                 label='Gradient Overlap')
-    plt.axis('off')     
+    plot_AR6_hexagons(result, resultID = 2, colorbar_label = 'Gradient Overlap')
     plt.show()
+  
+
     
 #"/"
 
