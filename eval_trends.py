@@ -8,12 +8,13 @@ import os
 import pymc  as pm
 import arviz as az
 
-def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertations = 100):
+def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, n_itertations = 100):
+    
+    tracesID_save = tracesID_save + '_' + str(ys.shape[0]) 
+    if len(ys.shape) > 1:  tracesID_save = tracesID_save + '_' + str(ys.shape[1]) 
+    tracesID_save = tracesID_save + 'n_itertations' + '-' + str(n_itertations) + '.nc'
     
     if grab_trace:
-        tracesID_save = tracesID_save + '_' + str(ys.shape[0]) 
-        if len(ys.shape) > 1:  tracesID_save = tracesID_save + '_' + str(ys.shape[1]) 
-        tracesID_save = tracesID_save + 'n_itertations' + '-' + str(n_itertations) + '.nc'
         if os.path.isfile(tracesID_save): return az.from_netcdf(tracesID_save)
         print(tracesID_save)
     tm = np.arange(0, len(ys))
@@ -51,7 +52,7 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, n_itertatio
         except:
             print("trace gone wrong")
             set_trace()
-    if grab_trace:
+    if save_trace:
         trace.to_netcdf(tracesID_save)
     return(trace)
 
@@ -106,6 +107,77 @@ def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
     np.savetxt(outFile, outarr, delimiter=',')
     return prob
 
+def calculate_distance(x, y):
+    lower_bound = np.min(x, axis=1)   # Extract the first column of x
+    upper_bound = np.max(x, axis=1)   # Extract the second column of x
+
+    below_lower = y < lower_bound
+    above_upper = y > upper_bound
+
+    distances = np.where(below_lower, lower_bound - y, 0)
+    distances = np.where(above_upper, y - upper_bound, distances)
+    return distances
+
+
+
+
+def NME(X, Y, step1Only = False, x_range = False):    
+    if len(X.shape) > 1 and X.shape[1] > 1 and not x_range:
+        axis = 0 if X.shape[0] == Y.shape[0] else 1
+        out_each = np.apply_along_axis(NME, axis=axis, arr=X, Y=Y)
+        out_each = np.reshape(out_each, (out_each.shape[0], out_each.shape[2]))
+
+        #X_range = np.array([np.min(X, axis=1),  np.max(X, axis=1)]).T
+        out_all = NME(X, Y, step1Only, x_range = True)
+
+        colnames = ['model ' + str(i) for i in range(out_each.shape[1])] + ['All']
+        out = np.append(out_each, np.array(out_all), axis = 1)
+        out = pd.DataFrame(out, index=['NME1', 'NME2','NME3', 'NMEA'],  columns = colnames)
+        return out
+ 
+    if x_range:        
+        mask = ~np.isnan(np.sum(X, axis = 1) + Y) 
+        X = X[mask, :]
+        def metric(x, y):
+            disty = calculate_distance(x, y)
+            distx = calculate_distance(x, np.mean(x))
+            return(np.sum(np.abs(disty))/np.sum(np.abs(distx)))
+    else:
+        mask = ~np.isnan(X + Y)
+        X = X[mask]
+        
+        def metric(x, y):
+            return np.sum(np.abs(x-y))/np.sum(np.abs(x - np.mean(x)))
+    Y = Y[mask]
+
+    nme1 = metric(X, Y)
+
+    if step1Only: return nme1
+
+    def removeMean(x): return x - np.mean(x)
+    X2 = removeMean(X)
+    Y2 = removeMean(Y)
+    nme2 = metric(X2, Y2)
+
+    def removeVar(x): return x / np.mean(np.abs(x))
+    X3 = removeVar(X2) 
+    Y3 = removeVar(Y2)
+    nme3 = metric(X3, Y3)
+    
+    def relativeAnom(x): 
+        mu = np.mean(x)
+        return (x - mu)/mu
+    XA = removeVar(X) 
+    YA = removeVar(Y)
+
+    nmeA = metric(XA, YA)
+
+    return pd.DataFrame(np.array([nme1, nme2, nme3, nmeA]), 
+                        index=['NME1', 'NME2','NME3', 'NMEA'])
+    
+#def NME_null(X):
+    
+
 if __name__=="__main__":
       
 
@@ -153,7 +225,13 @@ if __name__=="__main__":
             np.save(X_temp_file, X)
         
         prob = find_and_compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
-        return ar6_region_code, value, prob
+        
+        #NME_temp_file =
+        #    'temp/eval_trendsburnt_area_u-cc669-REGION---GIC---1996_2020-NME-nObs_3.npy'
+        NME = NME(X, Y)
+
+        #nme_median, nme_mean, nme_RR = NME_null(X)
+        return ar6_region_code, value, prob, NME
 
     result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
                                     ar6_regions.items()))
