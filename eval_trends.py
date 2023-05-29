@@ -110,7 +110,7 @@ def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
 def calculate_distance(x, y):
     lower_bound = np.min(x, axis=1)   # Extract the first column of x
     upper_bound = np.max(x, axis=1)   # Extract the second column of x
-
+    
     below_lower = y < lower_bound
     above_upper = y > upper_bound
 
@@ -121,35 +121,38 @@ def calculate_distance(x, y):
 
 
 
-def NME(X, Y, step1Only = False, x_range = False):    
+def NME(X, Y, step1Only = False, x_range = False, premasked = False):    
     if len(X.shape) > 1 and X.shape[1] > 1 and not x_range:
-        axis = 0 if X.shape[0] == Y.shape[0] else 1
+        axis = 0 if np.isscalar(Y) or X.shape[0] == Y.shape[0] else 1
         out_each = np.apply_along_axis(NME, axis=axis, arr=X, Y=Y)
         out_each = np.reshape(out_each, (out_each.shape[0], out_each.shape[2]))
 
         #X_range = np.array([np.min(X, axis=1),  np.max(X, axis=1)]).T
         out_all = NME(X, Y, step1Only, x_range = True)
 
-        colnames = ['model ' + str(i) for i in range(out_each.shape[1])] + ['All']
+        colnames = ['observation ' + str(i) for i in range(out_each.shape[1])] + ['All']
         out = np.append(out_each, np.array(out_all), axis = 1)
         out = pd.DataFrame(out, index=['NME1', 'NME2','NME3', 'NMEA'],  columns = colnames)
         return out
  
     if x_range:        
-        mask = ~np.isnan(np.sum(X, axis = 1) + Y) 
-        X = X[mask, :]
+        if not premasked:
+            mask = ~np.isnan(np.sum(X, axis = 1) + Y) 
+            X = X[mask, :]
         def metric(x, y):
             disty = calculate_distance(x, y)
             distx = calculate_distance(x, np.mean(x))
             return(np.sum(np.abs(disty))/np.sum(np.abs(distx)))
     else:
-        mask = ~np.isnan(X + Y)
-        X = X[mask]
+        if not premasked:
+            mask = ~np.isnan(X + Y)
+            X = X[mask]
         
         def metric(x, y):
             return np.sum(np.abs(x-y))/np.sum(np.abs(x - np.mean(x)))
-    Y = Y[mask]
-
+    
+    if not premasked and not np.isscalar(Y): Y = Y[mask]
+   
     nme1 = metric(X, Y)
 
     if step1Only: return nme1
@@ -175,12 +178,58 @@ def NME(X, Y, step1Only = False, x_range = False):
     return pd.DataFrame(np.array([nme1, nme2, nme3, nmeA]), 
                         index=['NME1', 'NME2','NME3', 'NMEA'])
     
-#def NME_null(X):
+def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):
+    index_names = ['median null', 'mean null',
+                   'Ranomly-resampled null - mean', 'Ranomly-resampled null - sdev']
+    if len(X.shape) > 1 and X.shape[1] > 1 and not x_range:
+        out_each = np.apply_along_axis(NME_null, axis=axis, arr=X)
+        out_each = np.reshape(out_each, (out_each.shape[0], out_each.shape[2]))
+
+        out_all = NME_null(X, x_range = True)
+        colnames = ['observation ' + str(i) for i in range(out_each.shape[1])] + ['All']
+        out = np.append(out_each, np.array(out_all), axis = 1)
+        out = pd.DataFrame(out, index=index_names,  columns = colnames)
+        
+        return out
     
+    if x_range:        
+        mask = ~np.isnan(np.sum(X, axis = 1)) 
+        X = X[mask, :]
+    else:
+        X = X[~np.isnan(X)]
+    
+    median_null = NME(X, np.median(X), x_range = x_range, step1Only = True, premasked = True)
+    mean_null = 1
+
+    def randonly_resample_null(X, XR):
+        if x_range: XR =  np.random.choice(X.flatten(), size=X.shape[0])
+        else: np.random.shuffle(XR)
+        return NME(X, XR, x_range = x_range, step1Only = True, premasked = True)
+        
+    RR = np.empty(0)
+    XR = X.copy()
+    for i in range(0, 1000):
+        RR = np.append(RR, randonly_resample_null(X, XR))
+    
+        if i > 10: 
+            RR_mean0 = RR_mean
+            RR_sdev0 = RR_sdev
+
+        RR_mean = np.mean(RR)
+        RR_sdev = np.std(RR)
+        
+        if i > 10: 
+            if np.abs(RR_mean - RR_mean0) < 0.001 and np.abs(RR_sdev - RR_sdev0) < 0.001:
+                break
+    if return_RR_sample:
+        return median_null, mean_null, RR_mean, RR_sdev, RR
+    else:
+        return pd.DataFrame(np.array([median_null, mean_null, RR_mean, RR_sdev]), 
+                            index=index_names)
+         
 
 if __name__=="__main__":
-      
-
+    
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
 
     dir_observation = "/data/dynamic/dkelley/fireMIPbenchmarking/data/benchmarkData/"
@@ -228,9 +277,14 @@ if __name__=="__main__":
         
         #NME_temp_file =
         #    'temp/eval_trendsburnt_area_u-cc669-REGION---GIC---1996_2020-NME-nObs_3.npy'
-        NME = NME(X, Y)
+        nme = NME(X, Y)        
+        nme_null = NME_null(X)
+        obs_mean = np.nanmean(X, axis = 0)
 
-        #nme_median, nme_mean, nme_RR = NME_null(X)
+        Yspread = np.reshape(np.repeat(Y, X.shape[1]), X.shape)
+        
+        set_trace()
+        
         return ar6_region_code, value, prob, NME
 
     result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
