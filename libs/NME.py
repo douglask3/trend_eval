@@ -1,7 +1,17 @@
 import numpy as np
 import pandas as pd
 
-def calculate_distance(x, y):
+def calculate_distance(x, y):    
+    """calculates the minumum distance between y and each row of x, returning '0' if y is 
+       between x's rows min and max values.
+       Assumes we are interested in minimum diffence alog rows.
+    Arguments:
+        x -- 2-d numpy array of N by M where M is >=2 
+             (if M was 1, the  this would just be np.abs(x-y)
+        y -- either single value of 1-d numpy array of length N
+    Returns.
+        distances -- numpy 1-d array of length N.
+    """
     lower_bound = np.min(x, axis=1)   # Extract the first column of x
     upper_bound = np.max(x, axis=1)   # Extract the second column of x
     
@@ -12,7 +22,34 @@ def calculate_distance(x, y):
     distances = np.where(above_upper, y - upper_bound, distances)
     return distances
 
-def NME(X, Y, step1Only = False, x_range = False, premasked = False):    
+def NME(X, Y, step1Only = False, x_range = False, premasked = False):   
+    """ Nomalised Mean Error, step 1-3 (Kelley et al. 2013) and 
+        over relative anomolie (Burton and Lampe et al. submitted). 
+        
+        Assumes that if X has more than one columne, then each column is a different 
+        observtations, and we are interested in comparing each column in turn,
+        and the minimum distance between or columns..
+    Arguments:
+        X -- 1-d or 2-d numpy array, equivlent to "observed" in Kelley et al. 2013
+        y -- 1-d numpy array equivlent to "simulation" in Kellet et al. 2013
+        step1Only -- boolean. If True, only return NME step 1
+        x_range -- Boolean. If True, returns only results over range of obsvervations when
+                X is 2-d
+        premasked -- Boolean. This function will mask out nan values unnless this option is 
+                set to True. Only to speed things up. If in doubt, leave as defulat of 'False'
+    Returns.
+        if X is 1-d and step1Only, just NME step 1 is returned as a single lonely value
+        otherwise, a pandas datafrom of (index) NME 1, 2, 3 and relative anomolie and 
+        columns for each observation and, if X is 2-d, combined observtations
+
+    References
+        Kelley DI, Prentice IC, Harrison SP, Wang H, Simard M, Fisher JB, Willis KO. 
+        A comprehensive benchmarking system for evaluating global vegetation models. 
+        Biogeosciences. 2013 May 17;10(5):3313-40.
+
+        Burton C and Lampe S et al. "Is climate change driving an increase in global fires?" 
+        submitted
+    """ 
     if len(X.shape) > 1 and X.shape[1] > 1 and not x_range:
         axis = 0 if np.isscalar(Y) or X.shape[0] == Y.shape[0] else 1
         out_each = np.apply_along_axis(NME, axis=axis, arr=X, Y=Y)
@@ -72,7 +109,34 @@ def NME(X, Y, step1Only = False, x_range = False, premasked = False):
     return pd.DataFrame(np.array([nme1, nme2, nme3, nmeA]), 
                         index=['NME1', 'NME2','NME3', 'NMEA'])
   
-def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):
+def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):   
+    """ Nomalised Mean Error mean and randomly resampled (Kelley et al. 2013) and 
+        median (Burton et al. 2019) null model. 
+        
+        Assumes that if X has more than one columne, then each column is a different 
+        observtations, and we are interested in comparing each column in turn,
+        and the minimum distance between or columns..
+    Arguments:
+        X -- 1-d or 2-d numpy array, equivlent to "observed" in Kelley et al. 2013
+        x_range -- Boolean. If True, returns only results over range of obsvervations when
+                X is 2-d
+        return_RR_sample -- Boolean. If True, returns all random resample results. 
+                                     If False, returns summery.
+    Returns.
+        A pandas datafrom of (index) median, meanm randomly resampled mean score and 
+        randomly resampled standard deviation. Columns for each observation and, if X is 2-d,
+        combined observtations
+
+    References
+        Kelley DI, Prentice IC, Harrison SP, Wang H, Simard M, Fisher JB, Willis KO. 
+        A comprehensive benchmarking system for evaluating global vegetation models. 
+        Biogeosciences. 2013 May 17;10(5):3313-40.
+
+        Burton C, Betts R, Cardoso M, Feldpausch TR, Harper A, Jones CD, Kelley DI, 
+        Robertson E, Wiltshire A. Representation of fire, land-use change and vegetation 
+        dynamics in the Joint UK Land Environment Simulator vn4. 9 (JULES). Geoscientific Model
+        Development. 2019 Jan 9;12(1):179-93.
+    """ 
     index_names = ['median null', 'mean null',
                    'Ranomly-resampled null - mean', 'Ranomly-resampled null - sdev']
     if len(X.shape) > 1 and X.shape[1] > 1 and not x_range:
