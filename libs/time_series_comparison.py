@@ -56,8 +56,8 @@ def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
     return out
 
 
-
-def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, n_itertations = 100):    
+def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, 
+                               n_itertations = 100):    
     """ Finds Bayesian inference solution to linear model of ys, e.g. ys over time.
     Arguments:
         ys -- 1-d or 2-d numpy array or list of y-variable of y = y0 + beta*x, where x is the 
@@ -128,7 +128,7 @@ def compare_gradients(beta_Y, beta_X):
     Arguments:
         beta_Y, beta_X -- numpy array of sample of distributions. 
     Returns.
-        float, df
+        float of how much beta_Y is inside beta_X
     """
     beta_Y = beta_Y.flatten()
     beta_X = beta_X.flatten()
