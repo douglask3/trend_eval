@@ -1,6 +1,7 @@
 from main import *
-from   libs.plot_AR6_hexagons    import *
-from   libs.NME    import *
+from   libs.plot_AR6_hexagons import *
+from   libs.NME import *
+from libs.flatten_list import *
 import numpy  as np
 import matplotlib.pyplot as plt
 from pdb import set_trace
@@ -9,14 +10,7 @@ import os
 import pymc  as pm
 import arviz as az
 
-def flatten_list(lst):
-    flattened = []
-    for item in lst:
-        if isinstance(item, str):
-            flattened.append(item)
-        elif isinstance(item, list):
-            flattened.extend(flatten_list(item))
-    return flattened
+
 
 def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, n_itertations = 100):
     
