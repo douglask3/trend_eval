@@ -7,7 +7,20 @@ from pdb import set_trace
 import os
 
 def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
-    
+    """ Calculates the prbablity distribution of a log-transformed linear model gradient of 
+        Y0 and X0 stepping over each row (assuming each row represents e.g. time) and 
+        compares their overlap.
+    Arguments:
+        Y0 -- 1-d numpy array of test variable, i.e simulation.
+        X0 -- 1-d or 2-d array of comparison variable. If 2-d, will compute a common 
+            gradient but differnt intercept for each 
+        tracesID_save -- string, with path and start of filename where traces and output 
+            will be saved.
+        *args, **kw -- argumements passed to 'run_time_series_regression'
+    Returns.
+        pandas dataframe of how much the graident of Y0 overlaps with X0 and 10-90% percentile
+        range of Y0 and X0.
+    """
     Y = np.log(Y0 + 0.000000000000001)
     X = np.log(X0 + 0.000000000000001)
     
@@ -44,8 +57,24 @@ def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
 
 
 
-def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, n_itertations = 100):
-    
+def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, n_itertations = 100):    
+    """ Finds Bayesian inference solution to linear model of ys, e.g. ys over time.
+    Arguments:
+        ys -- 1-d or 2-d numpy array or list of y-variable of y = y0 + beta*x, where x is the 
+            element number in ys. If 2-d, assumes each columne is a different measurement of   
+            the same variable, and run a model with common gradient but different y0's. 
+        tracesID_save -- string, with path and start of filename where traces and output 
+            will be saved. More meta data will be saved in the filename
+        grab_trace - Boolean. If True, and there is an existing trace matching the
+            tracesID_save with extra metadata in filename, it will oprn this rather than 
+            running a new trace. If in doubt, set to False
+        save_trace - Boolean. If True, it will save a trace file under 'tracesID_save' plus 
+            some meta data
+        n_itertations -- number of iterations that will sample the model posterior.
+        
+    Returns.
+        pymc4 trace file.
+    """
     tracesID_save = tracesID_save + '_' + str(ys.shape[0]) 
     if len(ys.shape) > 1:  tracesID_save = tracesID_save + '_' + str(ys.shape[1]) 
     tracesID_save = tracesID_save + 'n_itertations' + '-' + str(n_itertations) + '.nc'
@@ -54,6 +83,7 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace 
         if os.path.isfile(tracesID_save): return az.from_netcdf(tracesID_save)
         print(tracesID_save)
     tm = np.arange(0, len(ys))
+
     with pm.Model() as model:  # model specifications in PyMC are wrapped in a with-statement
         # Define priors
         epsilon = pm.LogNormal("epsilon", 0, 10)
@@ -92,7 +122,14 @@ def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace 
         trace.to_netcdf(tracesID_save)
     return(trace)
 
-def compare_gradients(beta_Y, beta_X):
+def compare_gradients(beta_Y, beta_X):  
+    """ calculates how much the samples in the "beta_Y" distribution fall inside the 
+        "beta_X" distribution
+    Arguments:
+        beta_Y, beta_X -- numpy array of sample of distributions. 
+    Returns.
+        float, df
+    """
     beta_Y = beta_Y.flatten()
     beta_X = beta_X.flatten()
     
