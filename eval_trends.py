@@ -8,6 +8,15 @@ import os
 import pymc  as pm
 import arviz as az
 
+def flatten_list(lst):
+    flattened = []
+    for item in lst:
+        if isinstance(item, str):
+            flattened.append(item)
+        elif isinstance(item, list):
+            flattened.extend(flatten_list(item))
+    return flattened
+
 def run_time_series_regression(ys, tracesID_save, grab_trace = True, save_trace = True, n_itertations = 100):
     
     tracesID_save = tracesID_save + '_' + str(ys.shape[0]) 
@@ -105,7 +114,14 @@ def find_and_compare_gradients(Y0, X0, tracesID_save, *args, **kw):
     
     outarr = np.vstack((betaY, alphaY, betaX, alphaX.T)).T
     np.savetxt(outFile, outarr, delimiter=',')
-    return prob
+    
+    out = np.concatenate(([prob], np.percentile(betaY, [15, 95]), 
+                                  np.percentile(betaX, [15, 95])))
+    out = pd.DataFrame(out, index=['Gradient Overlap', 
+                                   'Model coefficant - 10%', 'Model coefficant - 90%', 
+                                   'Observed coefficant - 10%', 'Observed coefficant - 90%'])
+    
+    return out
 
 def calculate_distance(x, y):
     lower_bound = np.min(x, axis=1)   # Extract the first column of x
@@ -139,10 +155,12 @@ def NME(X, Y, step1Only = False, x_range = False, premasked = False):
         if not premasked:
             mask = ~np.isnan(np.sum(X, axis = 1) + Y) 
             X = X[mask, :]
-        def metric(x, y):
-            disty = calculate_distance(x, y)
-            distx = calculate_distance(x, np.mean(x))
-            return(np.sum(np.abs(disty))/np.sum(np.abs(distx)))
+        def metric(z, y):
+            disty = calculate_distance(z, y)
+            distx = calculate_distance(z, np.mean(z))
+            distx = result = list(map(lambda x: calculate_distance(z, x), np.mean(z, axis = 0)))
+            
+            return np.mean(np.abs(disty))/np.mean(np.abs(np.array(distx)))            
     else:
         if not premasked:
             mask = ~np.isnan(X + Y)
@@ -154,7 +172,7 @@ def NME(X, Y, step1Only = False, x_range = False, premasked = False):
     if not premasked and not np.isscalar(Y): Y = Y[mask]
    
     nme1 = metric(X, Y)
-
+    
     if step1Only: return nme1
 
     def removeMean(x): return x - np.mean(x)
@@ -242,7 +260,8 @@ if __name__=="__main__":
     ar6_regions =  regionmask.defined_regions.ar6.land.region_ids
     n_itertations = 1000
     tracesID = 'burnt_area_u-cc669'
-
+    
+    output_file = 'outputs/trend_burnt_area_metric_results.csv'
     
     def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:   
      
@@ -273,7 +292,8 @@ if __name__=="__main__":
             np.save(Y_temp_file, Y)  
             np.save(X_temp_file, X)
         
-        prob = find_and_compare_gradients(Y, X, tracesID_save, n_itertations = n_itertations)
+        gradient_compare = find_and_compare_gradients(Y, X, tracesID_save, 
+                                                      n_itertations = n_itertations)
         
         #NME_temp_file =
         #    'temp/eval_trendsburnt_area_u-cc669-REGION---GIC---1996_2020-NME-nObs_3.npy'
@@ -282,15 +302,34 @@ if __name__=="__main__":
         obs_mean = np.nanmean(X, axis = 0)
 
         Yspread = np.reshape(np.repeat(Y, X.shape[1]), X.shape)
+        Yspread[np.isnan(X)] = np.nan
+        mod_mean = np.nanmean(Yspread, axis = 0)
         
-        set_trace()
         
-        return ar6_region_code, value, prob, NME
+        out =  ar6_region_code, value, obs_mean, mod_mean, nme
+        out = [out[0], out[1]] + list(np.concatenate(out[2:4])) + \
+               list(out[4].values.flatten()) + list(nme_null.values.flatten()) + \
+               list(gradient_compare.values.flatten())
+        
+        return(out)
 
+    models = [str(i) for i in range(len(filenames_observation))] + ['All']
+    null_models = ['Median', 'Mean', 'Randomly-resampled mean', 'Randomly-resampled - sd']
+    index = ['Region Code', 'Region ID'] + \
+            ['observation ' + str(i) for i in range(len(filenames_observation))] + \
+            ['simulations ' + str(i) for i in range(len(filenames_observation))] + \
+            [['NME ' + j + ' obs. ' + i for i in models] for j in ['1', '2', '3', 'A']]  + \
+            [[j + 'Null model obs. ' + i for i in models] for j in null_models] + \
+            ['Gradient overlap', 'Obs trend - 10%', 'Obs trend - 90%', 
+                                  'Mod trend - 10%', 'Mod trend - 90%']
+    index = flatten_list(index)
+    
     result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
                                     ar6_regions.items()))
     result = list(filter(lambda x: x is not None, result))
 
+    result = pd.DataFrame(np.array(result).T, index = index, columns = np.array(result)[:,0])
+    result.to_csv(output_file)
     plot_AR6_hexagons(result, resultID = 2, colorbar_label = 'Gradient Overlap')
     plt.show()
   
