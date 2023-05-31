@@ -75,7 +75,7 @@ def read_all_data_from_netcdf(y_filename, x_filename_list, add_1s_columne = Fals
         y_threshold -- if converting y into boolean, the threshold we use to spit into 
             0's and 1's
         add_1s_columne --useful for if using for regressions. Adds a variable of 
-            just 1's t rperesent y = SUM(a_i * x_i) + c
+            just 1's to rperesent y = SUM(a_i * x_i) + c
         check_mask -- Boolean. If True, simple checks if there are any large negtaive numbers 
             and makes them out. Assunes that values < -9E9, you dont want. This could be different 
             in some circumstances
