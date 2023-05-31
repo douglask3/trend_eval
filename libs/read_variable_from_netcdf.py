@@ -8,6 +8,7 @@ from libs.read_variable_from_netcdf import *
 
 def read_variable_from_netcdf(filename, dir = '', subset_function = None, 
                               make_flat = False, subset_function_args = None,
+                              time_series = None, 
                               *args, **kw):
     """Read data from a netCDF file 
         Assumes that the variables in the netcdf file all have the name "variable"
@@ -18,9 +19,13 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None,
             assumes variable name is "variable"
         dir -- directory file is in. Path can be in "filename" and None means no 
             additional directory path needed.
-    subset_function -- a function to be applied to each data set
-    make_flat - should the output variable to flattened or remain cybe
-
+        subset_function -- a function or list of functions to be applied to each data set
+        subset_function_args -- If subset_function is a function, dict arguments for that function. 
+                            If subset_function is a list, a  list or dict constaining arguments 
+                                for those functions in turn.
+        make_flat -- should the output variable to flattened or remain cube
+        time_series -- list comtaining range of years. If making flat and returned a time series, 
+            checks if that time series contains year.
     Returns:
         Y - if make_flat, a numpy vector of the target variable, otherwise returns iris cube
     """
@@ -28,13 +33,13 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None,
     print("Opening:")
     print(filename)
     
-    if isinstance(filename, str): 
-        dataset = iris.load_cube(dir + filename, callback=sort_time)        
-    else:
-        try:
+    try:
+        if isinstance(filename, str):        
+            dataset = iris.load_cube(dir + filename, callback=sort_time)
+        else:
             dataset = iris.load_cube(dir + filename[0], filename[1], callback=sort_time)
-        except:
-            set_trace()
+    except:
+        set_trace()
 
     if subset_function is not None:
         if isinstance(subset_function, list):
@@ -43,7 +48,14 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None,
         else: dataset = subset_function(dataset, **subset_function_args)     
         
     
-    if make_flat: dataset = dataset.data.flatten()
+    if make_flat: 
+        if time_series is not None: years = dataset.coord('year').points
+        dataset = dataset.data.flatten()
+        if time_series is not None:
+            if not years[ 0] == time_series[0]:
+                dataset = np.append(np.repeat(np.nan, years[ 0]-time_series[0]), dataset)
+            if not years[-1] == time_series[1]:
+                dataset = np.append(dataset, np.repeat(np.nan, time_series[1]-years[-1]))
     
     return dataset
 
