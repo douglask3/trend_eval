@@ -71,10 +71,14 @@ def ar6_region(cube, region_code):
     
     return cube_out
 
-def make_time_series(cube, annual_aggregate = None, year_range = None):
-    if year_range is not None:
-        cube = sub_year_range(cube, year_range)
-    
+def add_lat_lon_bounds(cube):
+    """add latitude and longitude bounds to a cube. Attempts each corrdinate in turn and add 
+        bounds if the coordinate exists but the bound doesn't
+    Arguments:
+        cube -- iris cube
+    Returns:
+        cube with latitude and longitude bounds
+    """
     try:
         cube.coord('latitude').guess_bounds()
     except:
@@ -83,6 +87,14 @@ def make_time_series(cube, annual_aggregate = None, year_range = None):
         cube.coord('longitude').guess_bounds()
     except:
         pass
+    return cube
+
+def make_time_series(cube, annual_aggregate = None, year_range = None):
+    if year_range is not None:
+        cube = sub_year_range(cube, year_range)
+    
+    cube = add_lat_lon_bounds(cube)
+
     ## in km2
     weights = iris.analysis.cartography.area_weights(cube)/1000000.0 
     cube.data[np.isnan(cube.data)] = 0.0
@@ -128,6 +140,70 @@ def sub_year_months(cube, months_of_year):
                              np.any(np.abs(mnths - cell[0])<0.5))
     return cube.extract(season)
 
+def constrain_GFED(cube, region, *args, **kw):
+    """constrains a cube to GFED region
+        Assumes that the cube is iris and on a 0.5 degree grid
+    Arguments:
+        cube -- an iris cube at 0.5 degrees
+        region -- numeric list (i.e [3, 7, 8]) where numbers pick GFED region.
+            You can pick more than one:
+            1 BONA
+            2 TENA
+            3 CEAM
+            4 NHSA
+            5 SHSA
+            6 EURO
+            7 MIDE
+            8 NHAF
+            9 SHAF
+            10 BOAS
+            11 CEAS
+            12 SEAS
+            13 EQAS
+            14 AUST
+    Returns:
+    Input cube with areas outside of selected GFEDregions masked out, 
+    constrained to that region
+    """
+    
+    regions = iris.load_cube('data/GFEDregions.nc')
+    return constrain_cube_by_cube_and_numericIDs(cube, regions, region)
+
+def constrain_cube_by_cube_and_numericIDs(cube, regions, region):
+    """constrains a cube to region identifies in 'mask'
+        Assumes that the cubes aere iris and on the same grid
+    Arguments:
+        cube -- an iris cube 
+        mask -- an iris cube at same resultion as 'cube' and where regions area identified
+                by number
+        region -- numeric list of regions to pick in 'mask'
+            You can pick more than one:
+            
+    Returns:
+    Input cube with areas outside of selected regions masked out, 
+    constrained to that region
+    """
+    
+    cube = add_lat_lon_bounds(cube)
+    regions = add_lat_lon_bounds(regions)
+    regions = regions.regrid(cube, iris.analysis.Linear())        
+    
+    mask = regions.copy()
+    mask.data[:] = 0.0
+    for reg in region: mask.data += regions.data == reg
+    
+    mask.data[mask.data.mask] = 0.0
+    mask = mask.data == 0
+
+    for layer in cube.data:
+        layer.mask[mask] = False
+        layer[mask] = np.nan
+    
+    cube_out = constrain_to_data(cube)
+    return cube_out
+
+
+
 def constrain_olson(cube, ecoregions):
     """constrains a cube to Olson ecoregion
     Assumes that the cube is iris and on a 0.5 degree grid
@@ -157,6 +233,8 @@ def constrain_olson(cube, ecoregions):
     constrained to that region
     """
     biomes = iris.load_cube('data/wwf_terr_ecos_0p5.nc')
+    return constrain_cube_by_cube_and_numericIDs(cube, biomes, ecoregions)
+
     mask = biomes.copy()
     mask.data[:] = 0.0
     for ecoreg in ecoregions: mask.data += biomes.data == ecoreg

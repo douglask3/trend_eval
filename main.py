@@ -182,8 +182,10 @@ if __name__=="__main__":
 
     Y, X, lmask = read_all_data_from_netcdf(y_filen, x_filen_list, 
                                            add_1s_columne = True, dir = dir, y_threshold = 0.1,
-                                           subset_function = [sub_year_months, ar6_region], 
+                                           subset_function = [sub_year_months, constrain_GFED,
+                                                              ar6_region], 
                                            subset_function_args = [{'months_of_year': [6, 7, 8]},
+                                                                   {'region': [4,5]},
                                                                    {'region_code' : ['NWS', 'NSA']}])
     
     ## Perform regression

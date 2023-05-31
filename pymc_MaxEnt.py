@@ -129,7 +129,7 @@ if __name__=="__main__":
     Y, X, lmask = read_all_data_from_netcdf(y_filen, x_filen_list, 
                                            add_1s_columne = True, dir = dir, 
                                            subset_function = sub_year_months, 
-                                             subset_function_args = {'months_of_year': months_of_year})
+                                           subset_function_args = {'months_of_year': months_of_year})
     
     filename = '_'.join([file[:-3] for file in x_filen_list]) + '-Month_' + \
                '_'.join([str(mn) for mn in months_of_year])
