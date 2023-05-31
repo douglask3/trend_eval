@@ -72,6 +72,13 @@ def ar6_region(cube, region_code):
     return cube_out
 
 def add_lat_lon_bounds(cube):
+    """add latitude and longitude bounds to a cube. Attempts each corrdinate in turn and add 
+        bounds if the coordinate exists but the bound doesn't
+    Arguments:
+        cube -- iris cube
+    Returns:
+        cube with latitude and longitude bounds
+    """
     try:
         cube.coord('latitude').guess_bounds()
     except:
