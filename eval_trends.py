@@ -36,7 +36,7 @@ def trend_prob_for_region(ar6_region_code, value, observations_names, filename_m
                                          time_series = year_range, check_mask = False,
                                          subset_function = subset_functions, 
                                          subset_function_args = subset_function_args)
-        set_trace()
+        Y = Y * mod_scale
         np.save(Y_temp_file, Y)  
         np.save(X_temp_file, X)
         
@@ -122,7 +122,7 @@ if __name__=="__main__":
     output_file = 'outputs/trend_burnt_area_metric_results.csv'
 
     result = eval_trends_over_AR6_regions(filenames_observation, observations_names,
-                                          output_file, False,
+                                          output_file, True,
                                           observations_names, filename_model, mod_scale,
                                           year_range, n_itertations, tracesID)
 
