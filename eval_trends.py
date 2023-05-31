@@ -178,7 +178,7 @@ if __name__=="__main__":
 
     if os.path.isfile(temp_file_path):
         with open(temp_file_path, "rb") as file:
-            nme_over_obs = pickle.load(file)
+            X, Y, nme_over_obs = pickle.load(file)
     else:
         nme_over_obs = list(map(lambda x, y, z: open_compare_obs_mod(x, y, z, output_maps), 
                                 filenames_observation, obs_scale, observations_names))
@@ -186,37 +186,44 @@ if __name__=="__main__":
         with open(temp_file_path, "wb") as file:
             pickle.dump(nme_over_obs, file)
     
-    year_range = np.array([out[3] for out in nme_over_obs])
-    year_range = [np.min(year_range[:,0]), np.max(year_range[:,1])]
-    subset_function_args[0]['year_range'] = year_range
+        year_range = np.array([out[3] for out in nme_over_obs])
+        year_range = [np.min(year_range[:,0]), np.max(year_range[:,1])]
+        subset_function_args[0]['year_range'] = year_range
 
-    XYs = list(map(lambda x, y, z: open_compare_obs_mod(x, y, z, output_maps, openOnly = True), 
-                                filenames_observation, obs_scale, observations_names))
+        XYs = list(map(lambda x, y, z: open_compare_obs_mod(x, y, z, 
+                                                            output_maps, openOnly = True), 
+                                    filenames_observation, obs_scale, observations_names))
     
-    X = [xy[0] for xy in XYs]
-    cubes = []    
-    for i in range(len(X)):       
-        coord = iris.coords.DimCoord(i, "realization")  
-        cube = X[0].copy()      
-        cube.add_aux_coord(coord)
-        cube.data = X[i].data.astype(np.float32)
-        cubes.append(cube)
+        X = [xy[0] for xy in XYs]
+        cubes = []    
+        for i in range(len(X)):       
+            coord = iris.coords.DimCoord(i, "realization")  
+            cube = X[0].copy()      
+            cube.add_aux_coord(coord)
+            cube.data = X[i].data.astype(np.float32)
+            cubes.append(cube)
+        
+        X = iris.cube.CubeList(cubes).merge_cube()    
+        Y = XYs[0][1]
+        output_maps = output_maps + '/All/'
+        makeDir(output_maps)
     
-    X = iris.cube.CubeList(cubes).merge_cube()    
-    Y = XYs[0][1]
-    output_maps = output_maps + '/All/'
-    makeDir(output_maps)
+        X_filename = output_maps + 'observation.nc'
+        Y_filename = output_maps + 'simulation.nc'
+        iris.save(X, X_filename)
+        iris.save(Y, Y_filename)
 
-    X_filename = output_maps + 'observation.nc'
-    Y_filename = output_maps + 'simulation.nc'
-    iris.save(X, X_filename)
-    iris.save(Y, Y_filename)
+        with open(temp_file_path, "wb") as file:
+            pickle.dump((X, Y, nme_over_obs), file)
 
+    
+    nme = NME_cube(X, Y)
+    nme_null = NME_null_cube(X)
     set_trace()
     
     #open_compare_obs_mod(filenames_observation[0], observations_names[0], output_maps)
     nme_obs = list(map(NME_by_obs, observations_names))
-    
+
     
     
     #plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')

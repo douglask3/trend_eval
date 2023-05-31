@@ -59,11 +59,12 @@ def NME(X, Y, W = None, step1Only = False, x_range = False, premasked = False):
     """ 
     if len(X.shape) > 1 and X.shape[1] > 1 and not x_range:
         axis = 0 if np.isscalar(Y) or X.shape[0] == Y.shape[0] else 1
-        out_each = np.apply_along_axis(NME, axis=axis, arr=X, Y=Y)
+        out_each = np.apply_along_axis(NME, axis=axis, arr=X, Y=Y, W = W)
         out_each = np.reshape(out_each, (out_each.shape[0], out_each.shape[2]))
 
         #X_range = np.array([np.min(X, axis=1),  np.max(X, axis=1)]).T
-        out_all = NME(X, Y, step1Only, x_range = True)
+        
+        out_all = NME(X, Y, W, step1Only, x_range = True)
 
         colnames = ['observation ' + str(i) for i in range(out_each.shape[1])] + ['All']
         out = np.append(out_each, np.array(out_all), axis = 1)
@@ -71,10 +72,14 @@ def NME(X, Y, W = None, step1Only = False, x_range = False, premasked = False):
         return out
  
     if W is not None:
-        X = X * W
+        if x_range:
+            X = (W * X.T).T
+        else:
+            X = X * W
         Y = Y * W
 
-    if x_range:        
+    if x_range:     
+        
         if not premasked:
             mask = ~np.isnan(np.sum(X, axis = 1) + Y) 
             X = X[mask, :]
@@ -202,26 +207,41 @@ def NME_null(X, axis = 0, x_range = False, return_RR_sample = False, premasked =
 
 
 def NME_cube(X, Y, *args, **kw):
-    weights = iris.analysis.cartography.area_weights(X).flatten()
-
-    XD = X.data.flatten()
+    weights = iris.analysis.cartography.area_weights(Y).flatten()
+    if len(X.shape) == (len(Y.shape)+1):
+        XD = X.data.reshape(X.shape[0], -1)
+        mask = np.any(XD.mask, axis = 0) | np.any(np.isnan(XD), axis = 0)
+    else:
+        XD = X.data.flatten()
+        mask =  XD.mask | np.isnan(XD.data)
+    
     YD = Y.data.flatten()
 
-    mask = XD.mask | YD.mask | np.isnan(XD.data) | np.isnan(YD.data)
+    mask = mask | YD.mask | np.isnan(YD.data)
     mask = ~mask
-    XD = XD[mask]
+    
+    if len(XD.shape) == 2:
+        XD = XD[:,mask].T
+    else:
+        XD = XD[mask]
     YD = YD[mask]
     weights = weights[mask]
     
     return NME(XD, YD, W = weights, premasked = True)
 
 def NME_null_cube(X, *args, **kw):
-    weights = iris.analysis.cartography.area_weights(X).flatten()
-    XD =  X.data.flatten()
-    mask = XD.mask | np.isnan(XD.data)
-    mask = ~mask
-    XD = XD[mask]
+    if len(X.shape) == 3:
+        weights = iris.analysis.cartography.area_weights(X[0]).flatten()
+        XD = X.data.reshape(X.shape[0], -1)
+        mask = ~(np.any(XD.mask, axis = 0) | np.any(np.isnan(XD), axis = 0))
+        XD = XD[:,mask].T
+    else:
+        weights = iris.analysis.cartography.area_weights(X[0]).flatten()
+        XD =  X.data.flatten()
+        mask = ~(XD.mask | np.isnan(XD.data))
+        XD = XD[mask]
     weights = weights[mask]
+    
     return NME_null(XD, W = weights, premasked = True)
     
     
