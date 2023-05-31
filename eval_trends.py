@@ -138,7 +138,7 @@ if __name__=="__main__":
 
         X, year_range = readFUN(filename_obs, subset_function_args)
         subset_function_args[0]['year_range'] = year_range
-        Y, year_rangeY = readFUN(filename_model, subset_function_args)
+        Y = readFUN(filename_model, subset_function_args)
         nme = NME_cube(X, Y)
         nme_null = NME_null_cube(X)
         set_trace()
