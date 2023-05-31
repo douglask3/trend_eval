@@ -1,14 +1,12 @@
 from main import *
-from   libs.plot_AR6_hexagons import *
-from   libs.NME import *
+from libs.plot_AR6_hexagons import *
+from libs.NME import *
 from libs.flatten_list import *
 from libs.time_series_comparison import *
 import numpy  as np
 import matplotlib.pyplot as plt
 from pdb import set_trace
 import os
-
-
     
 def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:   
     
@@ -52,30 +50,19 @@ def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:
         
         
     out =  ar6_region_code, value, obs_mean, mod_mean, nme
-    out = [out[0], out[1]] + list(np.concatenate(out[2:4])) + \
-           list(out[4].values.flatten()) + list(nme_null.values.flatten()) + \
-           list(gradient_compare.values.flatten())
-        
+    
+    out = [out[0], out[1]] + list(np.concatenate(out[2:4])) + list(out[4].values.flatten()) + \
+          list(nme_null.values.flatten()) + \
+          list(gradient_compare.values.flatten())
+    
     return(out)
 
-
-if __name__=="__main__":    
-    filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
-
-    dir_observation = "/data/dynamic/dkelley/fireMIPbenchmarking/data/benchmarkData/"
-    filenames_observation = ["ISIMIP3a_obs/GFED4.1s_Burned_Fraction.nc", \
-                             "ISIMIP3a_obs/FireCCI5.1_Burned_Fraction.nc", \
-                             "ISIMIP3a_obs/GFED500m_Burned_Percentage.nc"]
+def eval_trends_over_AR6_regions(filename_model, filenames_observation,
+                                 observations_names, year_range, n_itertations, tracesID,
+                                 output_file, grab_output = True):
     
-    observations_names = ['GFED4.1s', 'FireCCI5.1', 'GFED500m']
-    filenames_observation = [dir_observation + file for file in filenames_observation]
-
-    year_range = [1996, 2020]
+    if grab_output and os.path.isfile(Y_temp_file): return pd.read_csv(region_file)
     ar6_regions =  regionmask.defined_regions.ar6.land.region_ids
-    n_itertations = 1000
-    tracesID = 'burnt_area_u-cc669'
-    
-    output_file = 'outputs/trend_burnt_area_metric_results.csv'
 
     if observations_names is None:
         observations_names = [str(i) for i in range(len(filenames_observation))] + ['All']
@@ -97,23 +84,39 @@ if __name__=="__main__":
     result = list(filter(lambda x: x is not None, result))
     
     result = pd.DataFrame(np.array(result).T, index = index, columns = np.array(result)[:,0])
-
-    def NME_by_obs(obs_name):
-        X = result.loc['observation ' + observations_names[0]]
-        Y = result.loc['simulations ' + observations_names[0]]
-        nme = NME(X, Y)        
-        nme_null = NME_null(X)
-        set_trace()
-
-    set_trace()
-    plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')
-    result = pd.DataFrame(np.array(result).T, index = index, columns = np.array(result)[:,0])
     result.to_csv(output_file)
     
-    plt.show()
-  
+    return result
 
+def NME_by_obs(obs_name):
+    X = result.loc['observation ' + observations_names[0]]
+    Y = result.loc['simulations ' + observations_names[0]]
+    nme = NME(X, Y)        
+    nme_null = NME_null(X)
+    set_trace()
+
+if __name__=="__main__":    
+    filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
+
+    dir_observation = "/data/dynamic/dkelley/fireMIPbenchmarking/data/benchmarkData/"
+    filenames_observation = ["ISIMIP3a_obs/GFED4.1s_Burned_Fraction.nc", \
+                             "ISIMIP3a_obs/FireCCI5.1_Burned_Fraction.nc", \
+                             "ISIMIP3a_obs/GFED500m_Burned_Percentage.nc"]
+    filenames_observation = [dir_observation + file for file in filenames_observation]
     
-#"/"
+    observations_names = ['GFED4.1s', 'FireCCI5.1', 'GFED500m']
 
-#"GFED4.nc", "MCD45.nc", "meris_v2.nc"
+    year_range = [1996, 2020]
+    n_itertations = 1000
+    tracesID = 'burnt_area_u-cc669'
+    
+    output_file = 'outputs/trend_burnt_area_metric_results.csv'
+
+    result = eval_trends_over_AR6_regions(filename_model, filenames_observation,
+                                          observations_names, year_range, n_itertations, 
+                                          tracesID, output_file)
+    
+   set_trace() 
+    
+    #plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')
+
