@@ -61,7 +61,8 @@ def eval_trends_over_AR6_regions(filename_model, filenames_observation,
                                  observations_names, year_range, n_itertations, tracesID,
                                  output_file, grab_output = True):
     
-    if grab_output and os.path.isfile(output_file): return pd.read_csv(output_file)
+    if grab_output and os.path.isfile(output_file): 
+        return pd.read_csv(output_file, index_col = 0)
     ar6_regions =  regionmask.defined_regions.ar6.land.region_ids
 
     if observations_names is None:
@@ -89,11 +90,15 @@ def eval_trends_over_AR6_regions(filename_model, filenames_observation,
     return result
 
 def NME_by_obs(obs_name):
-    X = result.loc['observation ' + observations_names[0]]
-    Y = result.loc['simulations ' + observations_names[0]]
+    
+    X = result.loc['observation ' + obs_name].values.astype(float)
+    Y = result.loc['simulations ' + obs_name].values.astype(float)
+    
     nme = NME(X, Y)        
     nme_null = NME_null(X)
-    set_trace()
+    
+    return pd.DataFrame(np.append(nme_null, nme), index = np.append(nme_null.index, nme.index))
+    
 
 if __name__=="__main__":    
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
@@ -115,7 +120,24 @@ if __name__=="__main__":
     result = eval_trends_over_AR6_regions(filename_model, filenames_observation,
                                           observations_names, year_range, n_itertations, 
                                           tracesID, output_file)
+
+    subset_functions = [sub_year_range, annual_average]
+    subset_function_args = [{'year_range': year_range},
+                            {'annual_aggregate' : iris.analysis.SUM}]
     
+    def open_compare_obs_mod(filename_obs):
+        def readFUN(filename, subset_function_args):
+            return read_variable_from_netcdf(filename,subset_function = subset_functions, 
+                                             make_flat = False, 
+                                             subset_function_args = subset_function_args)
+
+        X, year_range = readFUN(filename_obs, subset_function_args)
+        subset_function_args[0]['year_range'] = year_range
+        Y, year_rangeY = readFUN(filename_obs, subset_function_args)
+        set_trace()
+    
+    open_compare_obs_mod(filenames_observation[0])
+    nme_obs = list(map(NME_by_obs, observations_names))
     set_trace() 
     
     #plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')
