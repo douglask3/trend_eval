@@ -7,9 +7,10 @@ import numpy  as np
 import matplotlib.pyplot as plt
 from pdb import set_trace
 import os
+import pickle
     
 def trend_prob_for_region(ar6_region_code, value, observations_names, filename_model, mod_scale,
-                                 year_range, n_itertations, tracesID):# in ar6_regions:   
+                          obs_scale, year_range, n_itertations, tracesID):# in ar6_regions:   
     
     if not isinstance(ar6_region_code, str): return 
     if ar6_region_code == 'EAN' or ar6_region_code == 'WAN': return
@@ -23,7 +24,8 @@ def trend_prob_for_region(ar6_region_code, value, observations_names, filename_m
     tracesID_save = 'temp/eval_trends' + tracesID + '-' + \
                     'REGION---' + ar6_region_code + '---' + \
                      '_'.join([str(year) for year in year_range]) + \
-                     '-model_scale_' +  str(mod_scale)
+                     '-model_scale_' +  str(mod_scale) + \
+                     '-obs_scale_' + '_'.join([str(i) for i in obs_scale])
     
     Y_temp_file = tracesID_save + '-Y' + '.npy'
     X_temp_file = tracesID_save + '-X' + '.npy'
@@ -37,6 +39,7 @@ def trend_prob_for_region(ar6_region_code, value, observations_names, filename_m
                                          subset_function = subset_functions, 
                                          subset_function_args = subset_function_args)
         Y = Y * mod_scale
+        X = X * obs_scale
         np.save(Y_temp_file, Y)  
         np.save(X_temp_file, X)
         
@@ -102,6 +105,11 @@ def NME_by_obs(obs_name):
     
     return pd.DataFrame(np.append(nme_null, nme), index = np.append(nme_null.index, nme.index))
     
+def makeDir(directory):
+    try:
+        os.mkdir(directory)
+    except:
+        pass
 
 if __name__=="__main__":    
     filename_model = "/scratch/hadea/isimip3a/u-cc669_isimip3a_fire/20CRv3-ERA5_obsclim/jules-vn6p3_20crv3-era5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2021.nc"
@@ -118,34 +126,98 @@ if __name__=="__main__":
     n_itertations = 1000
     tracesID = 'burnt_area_u-cc669'
     mod_scale = 1.0/100.0
-    
+    obs_scale = [1.0, 1.0, 1.0/100.0]
+
+    units = '1'
     output_file = 'outputs/trend_burnt_area_metric_results.csv'
+    output_maps = 'outputs/burnt_area/'
 
     result = eval_trends_over_AR6_regions(filenames_observation, observations_names,
                                           output_file, True,
-                                          observations_names, filename_model, mod_scale,
+                                          observations_names, filename_model, 
+                                          mod_scale, obs_scale,
                                           year_range, n_itertations, tracesID)
 
     subset_functions = [sub_year_range, annual_average]
     subset_function_args = [{'year_range': year_range},
                             {'annual_aggregate' : iris.analysis.SUM}]
     
-    def open_compare_obs_mod(filename_obs):
+    def open_compare_obs_mod(filename_obs, scale, name_obs, output_maps, openOnly = False):
+        makeDir(output_maps)
+        output_maps = output_maps + '/' + name_obs + '/'
+        makeDir(output_maps)
+        print(name_obs)
         def readFUN(filename, subset_function_args):
             return read_variable_from_netcdf(filename,subset_function = subset_functions, 
                                              make_flat = False, 
                                              subset_function_args = subset_function_args)
+        
 
         X, year_range = readFUN(filename_obs, subset_function_args)
         subset_function_args[0]['year_range'] = year_range
-        Y = readFUN(filename_model, subset_function_args)
+        Y, nn = readFUN(filename_model, subset_function_args)
+        if mod_scale is not None: Y.data = Y.data * mod_scale
+        if scale is not None: X.data = X.data * scale
+        if units is not None: Y.units = units
+        if units is not None: X.units = units
+        
+        if openOnly: return X, Y
+        X_filename = output_maps + 'observation.nc'
+        Y_filename = output_maps + 'simulation.nc'
+        iris.save(X, X_filename)
+        iris.save(Y, Y_filename)
+        
         nme = NME_cube(X, Y)
         nme_null = NME_null_cube(X)
-        set_trace()
+        scores = pd.DataFrame(np.append(nme_null, nme), 
+                              index = np.append(nme_null.index, nme.index))
+        
+        return scores, X, Y, year_range
     
-    open_compare_obs_mod(filenames_observation[0])
+    temp_file_path = 'temp/eval_trends_nme_over_obs_pickle-' + tracesID + '.pkl'
+
+    if os.path.isfile(temp_file_path):
+        with open(temp_file_path, "rb") as file:
+            nme_over_obs = pickle.load(file)
+    else:
+        nme_over_obs = list(map(lambda x, y, z: open_compare_obs_mod(x, y, z, output_maps), 
+                                filenames_observation, obs_scale, observations_names))
+        
+        with open(temp_file_path, "wb") as file:
+            pickle.dump(nme_over_obs, file)
+    
+    year_range = np.array([out[3] for out in nme_over_obs])
+    year_range = [np.min(year_range[:,0]), np.max(year_range[:,1])]
+    subset_function_args[0]['year_range'] = year_range
+
+    XYs = list(map(lambda x, y, z: open_compare_obs_mod(x, y, z, output_maps, openOnly = True), 
+                                filenames_observation, obs_scale, observations_names))
+    
+    X = [xy[0] for xy in XYs]
+    cubes = []    
+    for i in range(len(X)):       
+        coord = iris.coords.DimCoord(i, "realization")  
+        cube = X[0].copy()      
+        cube.add_aux_coord(coord)
+        cube.data = X[i].data.astype(np.float32)
+        cubes.append(cube)
+    
+    X = iris.cube.CubeList(cubes).merge_cube()    
+    Y = XYs[0][1]
+    output_maps = output_maps + '/All/'
+    makeDir(output_maps)
+
+    X_filename = output_maps + 'observation.nc'
+    Y_filename = output_maps + 'simulation.nc'
+    iris.save(X, X_filename)
+    iris.save(Y, Y_filename)
+
+    set_trace()
+    
+    #open_compare_obs_mod(filenames_observation[0], observations_names[0], output_maps)
     nme_obs = list(map(NME_by_obs, observations_names))
-    set_trace() 
+    
+    
     
     #plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')
 
