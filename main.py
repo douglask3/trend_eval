@@ -152,7 +152,7 @@ if __name__=="__main__":
 
     ## Open data
     dir = "D:/Doutorado/Sanduiche/research/maxent-test/driving_and_obs_overlap/AllConFire_2000_2009/"
-    dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
+    #dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
     y_filen = ["GFED4.1s_Burned_Fraction.nc", "Date"]
     
     x_filen_list=["precip.nc", "tas.nc", "crop.nc", "humid.nc","vpd.nc", "csoil.nc", 
@@ -181,7 +181,7 @@ if __name__=="__main__":
     levels = [0, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100]
     #levels = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
     cmap = 'OrRd'
-    plot_annual_mean(Obs, levels, cmap, plot_name = "Observtations", scale = 100*12, 
+    plot_annual_mean(Obs, levels, cmap, plot_name = "Observations", scale = 100*12, 
                      Nrows = 1, Ncols = 2, plot_n = 1)
 
     plot_annual_mean(Pred, levels, cmap, plot_name = "Model", scale = 100*12, 
