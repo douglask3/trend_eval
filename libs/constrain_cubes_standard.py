@@ -105,6 +105,7 @@ def make_time_series(cube, annual_aggregate = None, year_range = None):
 
     ## in km2
     weights = iris.analysis.cartography.area_weights(cube)/1000000000000.0 
+
     cube.data[np.isnan(cube.data)] = 0.0
     collapsed_cube = cube.collapsed(['latitude', 'longitude'], iris.analysis.SUM, 
                                     weights=weights)
