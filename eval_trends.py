@@ -66,6 +66,8 @@ if __name__=="__main__":
     filenames_observation = ["ISIMIP3a_obs/GFED4.1s_Burned_Fraction.nc", \
                              "ISIMIP3a_obs/FireCCI5.1_Burned_Fraction.nc", \
                              "ISIMIP3a_obs/GFED500m_Burned_Percentage.nc"]
+    
+    observations_names = ['GFED4.1s', 'FireCCI5.1', 'GFED500m']
     filenames_observation = [dir_observation + file for file in filenames_observation]
 
     year_range = [1996, 2020]
@@ -75,13 +77,17 @@ if __name__=="__main__":
     
     output_file = 'outputs/trend_burnt_area_metric_results.csv'
 
-    models = [str(i) for i in range(len(filenames_observation))] + ['All']
+    if observations_names is None:
+        observations_names = [str(i) for i in range(len(filenames_observation))] + ['All']
+    
+    NME_obs = observations_names + ['All']
+        
     null_models = ['Median', 'Mean', 'Randomly-resampled mean', 'Randomly-resampled - sd']
     index = ['Region Code', 'Region ID'] + \
-            ['observation ' + str(i) for i in range(len(filenames_observation))] + \
-            ['simulations ' + str(i) for i in range(len(filenames_observation))] + \
-            [['NME ' + j + ' obs. ' + i for i in models] for j in ['1', '2', '3', 'A']]  + \
-            [[j + 'Null model obs. ' + i for i in models] for j in null_models] + \
+            ['observation ' + str(i) for i in observations_names] + \
+            ['simulations ' + str(i) for i in observations_names] + \
+            [['NME ' + j + ' obs. ' + i for i in NME_obs] for j in ['1', '2', '3', 'A']]  + \
+            [[j + 'Null model obs. ' + i for i in NME_obs] for j in null_models] + \
             ['Gradient overlap', 'Obs trend - 10%', 'Obs trend - 90%', 
                                   'Mod trend - 10%', 'Mod trend - 90%']
     index = flatten_list(index)
@@ -89,6 +95,16 @@ if __name__=="__main__":
     result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
                                     ar6_regions.items()))
     result = list(filter(lambda x: x is not None, result))
+    
+    result = pd.DataFrame(np.array(result).T, index = index, columns = np.array(result)[:,0])
+
+    def NME_by_obs(obs_name):
+        X = result.loc['observation ' + observations_names[0]]
+        Y = result.loc['simulations ' + observations_names[0]]
+        nme = NME(X, Y)        
+        nme_null = NME_null(X)
+        set_trace()
+
     set_trace()
     plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')
     result = pd.DataFrame(np.array(result).T, index = index, columns = np.array(result)[:,0])
