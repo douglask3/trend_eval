@@ -1,4 +1,5 @@
-from main import *
+from libs.read_variable_from_netcdf import *
+from libs.plot_maps import *
 
 import os
 from   io     import StringIO
