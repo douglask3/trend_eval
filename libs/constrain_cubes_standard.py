@@ -7,7 +7,7 @@
 import iris
 import iris.coord_categorisation as icc
 import cartopy.io.shapereader as shpreader
-from ascend import shape
+#from ascend import shape
 import numpy as np
 
 def sub_year_months(cube, months_of_year):
