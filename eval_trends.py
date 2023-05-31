@@ -61,7 +61,7 @@ def eval_trends_over_AR6_regions(filename_model, filenames_observation,
                                  observations_names, year_range, n_itertations, tracesID,
                                  output_file, grab_output = True):
     
-    if grab_output and os.path.isfile(Y_temp_file): return pd.read_csv(region_file)
+    if grab_output and os.path.isfile(output_file): return pd.read_csv(output_file)
     ar6_regions =  regionmask.defined_regions.ar6.land.region_ids
 
     if observations_names is None:
@@ -116,7 +116,7 @@ if __name__=="__main__":
                                           observations_names, year_range, n_itertations, 
                                           tracesID, output_file)
     
-   set_trace() 
+    set_trace() 
     
     #plot_AR6_hexagons(result, resultID = 41, colorbar_label = 'Gradient Overlap')
 
