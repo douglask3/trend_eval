@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
 
+import iris
+from libs.iris_plus import *
+
+from pdb import set_trace
+
 def calculate_distance(x, y):    
     """calculates the minumum distance between y and each row of x, returning '0' if y is 
        between x's rows min and max values.
@@ -22,7 +27,7 @@ def calculate_distance(x, y):
     distances = np.where(above_upper, y - upper_bound, distances)
     return distances
 
-def NME(X, Y, step1Only = False, x_range = False, premasked = False):   
+def NME(X, Y, W = None, step1Only = False, x_range = False, premasked = False):   
     """ Nomalised Mean Error, step 1-3 (Kelley et al. 2013) and 
         over relative anomolie (Burton and Lampe et al. submitted). 
         
@@ -31,7 +36,9 @@ def NME(X, Y, step1Only = False, x_range = False, premasked = False):
         and the minimum distance between or columns..
     Arguments:
         X -- 1-d or 2-d numpy array, equivlent to "observed" in Kelley et al. 2013
-        y -- 1-d numpy array equivlent to "simulation" in Kellet et al. 2013
+        Y -- 1-d numpy array equivlent to "simulation" in Kelley et al. 2013
+        W -- 1-d numpy of length len(Y), representing how much to weight each comparison.
+            Can be, e.g, grid cell area.
         step1Only -- boolean. If True, only return NME step 1
         x_range -- Boolean. If True, returns only results over range of obsvervations when
                 X is 2-d
@@ -63,6 +70,10 @@ def NME(X, Y, step1Only = False, x_range = False, premasked = False):
         out = pd.DataFrame(out, index=['NME1', 'NME2','NME3', 'NMEA'],  columns = colnames)
         return out
  
+    if W is not None:
+        X = X * W
+        Y = Y * W
+
     if x_range:        
         if not premasked:
             mask = ~np.isnan(np.sum(X, axis = 1) + Y) 
@@ -109,7 +120,8 @@ def NME(X, Y, step1Only = False, x_range = False, premasked = False):
     return pd.DataFrame(np.array([nme1, nme2, nme3, nmeA]), 
                         index=['NME1', 'NME2','NME3', 'NMEA'])
   
-def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):   
+def NME_null(X, axis = 0, x_range = False, return_RR_sample = False, premasked = False, 
+            *args, **kw):   
     """ Nomalised Mean Error mean and randomly resampled (Kelley et al. 2013) and 
         median (Burton et al. 2019) null model. 
         
@@ -122,6 +134,7 @@ def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):
                 X is 2-d
         return_RR_sample -- Boolean. If True, returns all random resample results. 
                                      If False, returns summery.
+        *args, **kw -- arugemts passed to NME.
     Returns.
         A pandas datafrom of (index) median, meanm randomly resampled mean score and 
         randomly resampled standard deviation. Columns for each observation and, if X is 2-d,
@@ -150,13 +163,15 @@ def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):
         
         return out
 
-    if x_range:        
-        mask = ~np.isnan(np.sum(X, axis = 1)) 
-        X = X[mask, :]
-    else:
-        X = X[~np.isnan(X)]
+    if not premasked:
+        if x_range:        
+            mask = ~np.isnan(np.sum(X, axis = 1)) 
+            X = X[mask, :]
+        else:
+            X = X[~np.isnan(X)]
     
     median_null = NME(X, np.median(X), x_range = x_range, step1Only = True, premasked = True)
+    
     mean_null = 1
     
     def randonly_resample_null(X, XR):
@@ -184,4 +199,29 @@ def NME_null(X, axis = 0, x_range = False, return_RR_sample = False):
     else:
         return pd.DataFrame(np.array([median_null, mean_null, RR_mean, RR_sdev]), 
                             index=index_names)
+
+
+def NME_cube(X, Y, *args, **kw):
+    weights = iris.analysis.cartography.area_weights(X).flatten()
+
+    XD = X.data.flatten()
+    YD = Y.data.flatten()
+
+    mask = XD.mask | YD.mask | np.isnan(XD.data) | np.isnan(YD.data)
+    mask = ~mask
+    XD = XD[mask]
+    YD = YD[mask]
+    weights = weights[mask]
+    
+    return NME(XD, YD, W = weights, premasked = True)
+
+def NME_null_cube(X, *args, **kw):
+    weights = iris.analysis.cartography.area_weights(X).flatten()
+    XD =  X.data.flatten()
+    mask = XD.mask | np.isnan(XD.data)
+    mask = ~mask
+    XD = XD[mask]
+    weights = weights[mask]
+    return NME_null(XD, W = weights, premasked = True)
+    
     
