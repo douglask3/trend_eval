@@ -90,13 +90,22 @@ def add_lat_lon_bounds(cube):
     return cube
 
 def make_time_series(cube, annual_aggregate = None, year_range = None):
+    """converts cube into collapse time series cube.
+    Arguments:
+        cube -- iris cube
+        annual_aggregate -- Boolean. If True, time series is annual average.
+        year_range -- range of time series
+    Returns:
+        cube of summed over time
+    """
     if year_range is not None:
         cube = sub_year_range(cube, year_range)
     
     cube = add_lat_lon_bounds(cube)
 
     ## in km2
-    weights = iris.analysis.cartography.area_weights(cube)/1000000.0 
+    weights = iris.analysis.cartography.area_weights(cube)/1000000000000.0 
+
     cube.data[np.isnan(cube.data)] = 0.0
     collapsed_cube = cube.collapsed(['latitude', 'longitude'], iris.analysis.SUM, 
                                     weights=weights)
