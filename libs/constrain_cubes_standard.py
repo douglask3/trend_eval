@@ -89,6 +89,26 @@ def add_lat_lon_bounds(cube):
         pass
     return cube
 
+def annual_average(cube, annual_aggregate = None):
+    """calculates cube annual average
+    Arguments:
+        cube -- iris cube
+        annual_aggregate -- If None, does nothing. Otherwise, iris.analysis function for
+            aggratating years. If you want annual summed fractions, for example (i.e Burnt area)
+            use iris.analysis.SUM. If you want average flux, for example, use iris.analysis.MEAN
+    Returns:
+        cube of averaged over time, noting annual_agregrate. And 2 item list of year 
+        range of original cube
+    """
+    cube = add_lat_lon_bounds(cube)
+    if annual_aggregate is not None:
+        cube = cube.copy().aggregated_by('year', annual_aggregate)
+    
+    year_range = [np.min(cube.coord('year').points), np.max(cube.coord('year').points)]
+    cube = cube.collapsed('time',  iris.analysis.MEAN)
+    
+    return cube, year_range
+
 def make_time_series(cube, annual_aggregate = None, year_range = None):
     """converts cube into collapse time series cube.
     Arguments:
