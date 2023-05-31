@@ -111,8 +111,7 @@ def make_time_series(cube, annual_aggregate = None, year_range = None):
                                     weights=weights)
     
     if annual_aggregate is not None:
-        collapsed_cube = collapsed_cube.aggregated_by('year', annual_aggregate)
-    
+        collapsed_cube = collapsed_cube.aggregated_by('year', annual_aggregate)    
         
     return collapsed_cube
 
@@ -149,35 +148,6 @@ def sub_year_months(cube, months_of_year):
                              np.any(np.abs(mnths - cell[0])<0.5))
     return cube.extract(season)
 
-def constrain_GFED(cube, region, *args, **kw):
-    """constrains a cube to GFED region
-        Assumes that the cube is iris and on a 0.5 degree grid
-    Arguments:
-        cube -- an iris cube at 0.5 degrees
-        region -- numeric list (i.e [3, 7, 8]) where numbers pick GFED region.
-            You can pick more than one:
-            1 BONA
-            2 TENA
-            3 CEAM
-            4 NHSA
-            5 SHSA
-            6 EURO
-            7 MIDE
-            8 NHAF
-            9 SHAF
-            10 BOAS
-            11 CEAS
-            12 SEAS
-            13 EQAS
-            14 AUST
-    Returns:
-    Input cube with areas outside of selected GFEDregions masked out, 
-    constrained to that region
-    """
-    
-    regions = iris.load_cube('data/GFEDregions.nc')
-    return constrain_cube_by_cube_and_numericIDs(cube, regions, region)
-
 def constrain_cube_by_cube_and_numericIDs(cube, regions, region):
     """constrains a cube to region identifies in 'mask'
         Assumes that the cubes aere iris and on the same grid
@@ -211,7 +181,34 @@ def constrain_cube_by_cube_and_numericIDs(cube, regions, region):
     cube_out = constrain_to_data(cube)
     return cube_out
 
-
+def constrain_GFED(cube, region, *args, **kw):
+    """constrains a cube to GFED region
+        Assumes that the cube is iris and on a 0.5 degree grid
+    Arguments:
+        cube -- an iris cube at 0.5 degrees
+        region -- numeric list (i.e [3, 7, 8]) where numbers pick GFED region.
+            You can pick more than one:
+            1 BONA
+            2 TENA
+            3 CEAM
+            4 NHSA
+            5 SHSA
+            6 EURO
+            7 MIDE
+            8 NHAF
+            9 SHAF
+            10 BOAS
+            11 CEAS
+            12 SEAS
+            13 EQAS
+            14 AUST
+    Returns:
+    Input cube with areas outside of selected GFEDregions masked out, 
+    constrained to that region
+    """
+    
+    regions = iris.load_cube('data/GFEDregions.nc')
+    return constrain_cube_by_cube_and_numericIDs(cube, regions, region)
 
 def constrain_olson(cube, ecoregions):
     """constrains a cube to Olson ecoregion
@@ -243,19 +240,6 @@ def constrain_olson(cube, ecoregions):
     """
     biomes = iris.load_cube('data/wwf_terr_ecos_0p5.nc')
     return constrain_cube_by_cube_and_numericIDs(cube, biomes, ecoregions)
-
-    mask = biomes.copy()
-    mask.data[:] = 0.0
-    for ecoreg in ecoregions: mask.data += biomes.data == ecoreg
-    mask.data[mask.data.mask] = 0.0
-    mask = mask.data == 0
-
-    for layer in cube.data:
-        layer.mask[mask] = False
-        layer[mask] = np.nan
-
-    cube_out = constrain_to_data(cube)
-    return cube_out
 
 def constrain_natural_earth(cube, Country, Continent = None, shpfilename = None, *args, **kw):
     
