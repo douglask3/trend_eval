@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from pdb import set_trace
 import os
     
-def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:   
+def trend_prob_for_region(ar6_region_code, value, observations_names, filename_model, mod_scale,
+                                 year_range, n_itertations, tracesID):# in ar6_regions:   
     
     if not isinstance(ar6_region_code, str): return 
     if ar6_region_code == 'EAN' or ar6_region_code == 'WAN': return
@@ -21,12 +22,13 @@ def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:
     
     tracesID_save = 'temp/eval_trends' + tracesID + '-' + \
                     'REGION---' + ar6_region_code + '---' + \
-                     '_'.join([str(year) for year in year_range])
-        
-        
+                     '_'.join([str(year) for year in year_range]) + \
+                     '-model_scale_' +  str(mod_scale)
+    
     Y_temp_file = tracesID_save + '-Y' + '.npy'
     X_temp_file = tracesID_save + '-X' + '.npy'
-    if os.path.isfile(Y_temp_file) and os.path.isfile(X_temp_file): 
+    
+    if os.path.isfile(Y_temp_file) and os.path.isfile(X_temp_file) and False: 
         Y = np.load(Y_temp_file)
         X = np.load(X_temp_file)
     else :
@@ -34,6 +36,7 @@ def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:
                                          time_series = year_range, check_mask = False,
                                          subset_function = subset_functions, 
                                          subset_function_args = subset_function_args)
+        set_trace()
         np.save(Y_temp_file, Y)  
         np.save(X_temp_file, X)
         
@@ -57,9 +60,9 @@ def trend_prob_for_region(ar6_region_code, value):# in ar6_regions:
     
     return(out)
 
-def eval_trends_over_AR6_regions(filename_model, filenames_observation,
-                                 observations_names, year_range, n_itertations, tracesID,
-                                 output_file, grab_output = True):
+def eval_trends_over_AR6_regions(filenames_observation, observations_names = None,
+                                 output_file = '', grab_output = False,
+                                 *args, **kw):
     
     if grab_output and os.path.isfile(output_file): 
         return pd.read_csv(output_file, index_col = 0)
@@ -80,7 +83,7 @@ def eval_trends_over_AR6_regions(filename_model, filenames_observation,
                                   'Mod trend - 10%', 'Mod trend - 90%']
     index = flatten_list(index)
     
-    result = list(map(lambda item: trend_prob_for_region(item[0], item[1]), \
+    result = list(map(lambda item: trend_prob_for_region(item[0], item[1], *args, **kw), \
                                     ar6_regions.items()))
     result = list(filter(lambda x: x is not None, result))
     
@@ -114,12 +117,14 @@ if __name__=="__main__":
     year_range = [1996, 2020]
     n_itertations = 1000
     tracesID = 'burnt_area_u-cc669'
+    mod_scale = 1.0/100.0
     
     output_file = 'outputs/trend_burnt_area_metric_results.csv'
 
-    result = eval_trends_over_AR6_regions(filename_model, filenames_observation,
-                                          observations_names, year_range, n_itertations, 
-                                          tracesID, output_file)
+    result = eval_trends_over_AR6_regions(filenames_observation, observations_names,
+                                          output_file, False,
+                                          observations_names, filename_model, mod_scale,
+                                          year_range, n_itertations, tracesID)
 
     subset_functions = [sub_year_range, annual_average]
     subset_function_args = [{'year_range': year_range},
