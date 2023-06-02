@@ -7,7 +7,8 @@ from libs.constrain_cubes_standard import *
 from libs.read_variable_from_netcdf import *
 
 def read_variable_from_netcdf(filename, dir = '', subset_function = None, 
-                              make_flat = False, subset_function_args = None,
+                              make_flat = False, units = None, 
+                              subset_function_args = None,
                               time_series = None, 
                               *args, **kw):
     """Read data from a netCDF file 
@@ -40,7 +41,7 @@ def read_variable_from_netcdf(filename, dir = '', subset_function = None,
             dataset = iris.load_cube(dir + filename[0], filename[1], callback=sort_time)
     except:
         set_trace()
-
+    if units is not None: dataset.units = units
     if subset_function is not None:
         if isinstance(subset_function, list):
             for FUN, args in zip(subset_function, subset_function_args):
