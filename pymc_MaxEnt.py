@@ -1,5 +1,11 @@
-from libs.read_variable_from_netcdf import *
-from libs.plot_maps import *
+import multiprocessing as mp 
+mp.set_start_method('forkserver')
+
+import sys
+
+sys.path.append('libs/')
+from read_variable_from_netcdf import *
+from plot_maps import *
 
 import os
 from   io     import StringIO
@@ -49,7 +55,7 @@ def fire_model(betas, X, inference = False):
 	no. rows in X of burnt area/fire probabilities.
     """
     if inference: 
-        numPCK =  __import__('aesara').tensor
+        numPCK =  __import__('numpy') #numPCK =  __import__('aesara').tensor
     else:
         numPCK = __import__('numpy')
     
@@ -104,7 +110,9 @@ def fit_MaxEnt_probs_to_data(Y, X, niterations,
         error = pm.DensityDist("error", mu, logp = MaxEnt_on_prob, observed = Y)
 
         ## sample model
-        trace = pm.sample(niterations, return_inferencedata=True, cores = 1)
+        step = pm.Metropolis()
+        trace = pm.sample(niterations, return_inferencedata=True, njobs = 1, step = step, cores = 1, chains = 1)
+
         
         ## save trace file
         trace.to_netcdf(trace_file)
@@ -112,12 +120,14 @@ def fit_MaxEnt_probs_to_data(Y, X, niterations,
 
 
 if __name__=="__main__":
-    dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
+    #dir = "../ConFIRE_attribute/isimip3a/driving_data/GSWP3-W5E5-20yrs/Brazil/AllConFire_2000_2009/"
+    dir = "/gws/nopw/j04/jules/mbarbosa/driving_and_obs_overlap/AllConFire_2000_2009/"
     y_filen = "GFED4.1s_Burned_Fraction.nc"
     
-    x_filen_list=["precip.nc", "lightn.nc", "crop.nc", "humid.nc",#"vpd.nc", "csoil.nc", 
+    x_filen_list=["precip.nc", "lightn.nc", "crop.nc"] 
+    '''"humid.nc",#"vpd.nc", "csoil.nc", 
                   "lightn.nc", "rhumid.nc", "cveg.nc", "pas.nc", "soilM.nc", 
-                   "totalVeg.nc", "popDens.nc", "trees.nc"]
+                   "totalVeg.nc", "popDens.nc", "trees.nc"]'''
 
     niterations = 100
     sample_for_plot = 20
